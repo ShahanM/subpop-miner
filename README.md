@@ -41,9 +41,3 @@ The user interface provides 5 step wizard to guide the user through the process.
    subpopulation mining algorithm.
 5. **Run the algorithm**: The user can run the algorithm and receive a list of
    subpopulations that that are sensitive to data disclosure.
-
-More detail can be found in the Oganyan et al. paper (2021) [1].
-
-## How to cite this work?
-
-[1] Oganian, A., Iqbal, M. and Lesaja, G. 2021. Extreme value protection adjustment for different subpopulations in complex data sets. UNECE/Eurostat Expert Meeting on Statistical Data Confidentiality (Poland, Dec. 2021), 14.
