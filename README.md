@@ -42,7 +42,7 @@ The user interface provides 5 step wizard to guide the user through the process.
 5. **Run the algorithm**: The user can run the algorithm and receive a list of
    subpopulations that that are sensitive to data disclosure.
 
-More detail can be found in the Oganyan et al. paper (2021).
+More detail can be found in the Oganyan et al. paper (2021) [1].
 
 ## How to cite this work?
 
