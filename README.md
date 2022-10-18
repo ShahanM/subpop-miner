@@ -37,10 +37,8 @@ The user interface provides 5 step wizard to guide the user through the process.
 3. **Indicate data types**: The user needs to indicate the data types of the
    selected columns. The data types are considered in two levels: the first
    level is the general data type (`numeric`, `categorical`), and the second
-   level indicates if the variable is `dependent` or `independent`. The
-   `dependent` is the numerical variable that is the outlier which requires
-   adjusted protection. The `independent` variables are the variables that
-   define the subpopulation.
+   level indicates if the variable is `dependent` or `independent`.
+   The `dependent` variable is a numerical variable outlier of which must be protected. The `independent` variables are categorical and continuous variables that define subpopulations.
 4. **Select parameters**: The user can select the parameters for the
    subpopulation mining algorithm.
 5. **Run the algorithm**: The user can run the algorithm and receive a list of
