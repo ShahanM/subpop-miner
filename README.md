@@ -1,7 +1,8 @@
 # Subpop-miner
 
-This repository contains the source code to the subpopulation mining algorithm
-that mines subpopulation that need extra protection during data disclosure.
+This repository contains the source code to mining algorithm that identifies
+subpopulation where outliers are defined differently that the rest of the
+population.
 
 _Note: The user interface is in development and may contain bugs, incomplete
 form, and other interface affordances._
