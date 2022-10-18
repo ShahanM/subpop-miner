@@ -1,8 +1,8 @@
 # Subpop-miner
 
 This repository contains the source code to mining algorithm that identifies
-subpopulation where outliers are defined differently that the rest of the
-population.
+subpopulations where outliers are defined differently than in the rest of the
+population and might need adjustments in their protection.
 
 _Note: The user interface is in development and may contain bugs, incomplete
 form, and other interface affordances._
@@ -34,10 +34,13 @@ The user interface provides 5 step wizard to guide the user through the process.
    contain a header row.
 2. **Select relevant columns**: The user can select the columns that are
    relevant to the data protection project.
-3. **Indicate data types**: The user can indicate the data types of the
+3. **Indicate data types**: The user needs to indicate the data types of the
    selected columns. The data types are considered in two levels: the first
    level is the general data type (`numeric`, `categorical`), and the second
-   level indicates if the variable is `dependent` or `independent`.
+   level indicates if the variable is `dependent` or `independent`. The
+   `dependent` is the numerical variable that is the outlier which requires
+   adjusted protection. The `independent` variables are the variables that
+   define the subpopulation.
 4. **Select parameters**: The user can select the parameters for the
    subpopulation mining algorithm.
 5. **Run the algorithm**: The user can run the algorithm and receive a list of
