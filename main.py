@@ -4,7 +4,7 @@ from PyQt6.QtCore import *
 from PyQt6.QtGui import *
 from PyQt6.QtWidgets import *
 
-from utils.data_context import DataContext
+from utils.data_utils import DataContext
 from widgets.landing_widget import LandingWidget
 from widgets.varpick_widget import VariablePickerWidget
 from widgets.vartype_widget import VariableTypeIndicatorWidget
@@ -40,7 +40,6 @@ class MainWindow(QMainWindow):
 
 		# screen 2 - variable picker
 		self.var_pick_widget = VariablePickerWidget(self.data_context)
-
 
 		# screen 3 - variable type indicator
 		self.var_type_widget = VariableTypeIndicatorWidget(self.data_context)
