@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, \
 	QFileDialog, QProgressBar
-from data_context import DataContext
-from worker import Worker
+from utils.data_context import DataContext
+from utils.worker import Worker
 import pandas as pd
 from PyQt6.QtCore import pyqtSignal, QThreadPool
 
