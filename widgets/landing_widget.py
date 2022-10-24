@@ -57,7 +57,7 @@ class LandingWidget(QWidget):
 	def load_data_from_file(self, filename: str,\
 		sep: str, encoding: str, \
 		chunksize: int, totalrows: int,\
-		progress_callback: pyqtSignal) -> pd.DataFrame:
+		progress_callback) -> pd.DataFrame:
 		data = []
 		prog = 0
 		progress_callback.emit(int(prog/totalrows*100))
@@ -73,10 +73,8 @@ class LandingWidget(QWidget):
 		self.progressbar.setValue(100)
 		self.data_context.add_key_value_pair('dataframe', datafile)
 		self.data_context.add_key_value_pair('variables', list(datafile.columns))
-		# self.variables = list(self.dataframe.columns)
 
 	def thread_complete(self):
-		# self.left_list_widget.addItems(self.variables)
 		self.progress_placeholder.removeWidget(self.progressbar)
 
 	def progress_fn(self, n):
