@@ -15,8 +15,8 @@ class FrequentItemsets():
 	def __init__(self, min_support: float = 0.5, max_len: float = 3) -> None:
 		self.min_support = min_support
 		self.max_len = max_len
-		self.itemsets = None
-		self.id2item = None
+		self.itemsets: dict = {}
+		self.id2item: dict = {}
 
 	def find_frequent_itemsets(self, data: pd.DataFrame, \
 		relevant_columns: list) -> list:
