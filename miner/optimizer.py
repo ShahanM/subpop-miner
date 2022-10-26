@@ -133,6 +133,31 @@ class GeneticOptimizer(OptimizerBase):
 
 		return evo_candidates
 
+	def __mutate_parallel(self, evo_candidates:List[Individual]) -> List[Individual]:
+		"""Mutates the offspring.
+
+		Args:
+			evo_candidates (List[Individual]): The offspring to mutate.
+
+		Returns:
+			List[Individual]: The mutated offspring based on the mutation rate.
+		"""
+		# TODO - implement mutation
+		# 1. Mutate offspring
+		# 2. Return offspring
+
+		# TODO - parallelize
+
+		number_to_mutate = math.ceil(len(evo_candidates) * self.mutation_rate)
+		random.shuffle(evo_candidates)
+		
+		mutation_candidates = evo_candidates[:number_to_mutate]
+
+		with Pool(processes=8) as pool:
+			mutated = pool.map(self.__mutate_individual, mutation_candidates)
+
+		return evo_candidates[number_to_mutate:] + mutated
+
 	def __mutate_individual(self, individual: Individual) -> Individual:
 		"""Mutates an individual.
 
@@ -162,32 +187,7 @@ class GeneticOptimizer(OptimizerBase):
 				individual.rule.continuous_vars[cvar.name].lbound = value
 
 		return individual
-
-	def __mutate_parallel(self, evo_candidates:List[Individual]) -> List[Individual]:
-		"""Mutates the offspring.
-
-		Args:
-			evo_candidates (List[Individual]): The offspring to mutate.
-
-		Returns:
-			List[Individual]: The mutated offspring based on the mutation rate.
-		"""
-		# TODO - implement mutation
-		# 1. Mutate offspring
-		# 2. Return offspring
-
-		# TODO - parallelize
-
-		number_to_mutate = math.ceil(len(evo_candidates) * self.mutation_rate)
-		random.shuffle(evo_candidates)
 		
-		mutation_candidates = evo_candidates[:number_to_mutate]
-
-		with Pool(processes=8) as pool:
-			mutated = pool.map(self.__mutate_individual, mutation_candidates)
-
-		return evo_candidates[number_to_mutate:] + mutated
-
 	# can be parallelized
 	def __crossover(self, evo_candidates:List[Individual]) -> List[Individual]:
 		"""Crossover the selected individuals.

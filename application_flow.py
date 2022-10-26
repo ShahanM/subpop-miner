@@ -2,6 +2,7 @@ import pandas as pd
 from miner.rule import DiscreteVariable, DiscreteVariableDescriptor, RuleMeta, ContinuousVariable, Rule
 from miner.frequent_itemsets import FrequentItemsets
 import numpy as np
+from miner.optimizer import GeneticOptimizer
 
 from utils.data_utils import Config
 
@@ -208,6 +209,9 @@ def main(filepath):
 				'delta': config['delta']
 				}
 
+	passlist = []
+	faillist = []
+
 	# print(fitemsets.itemsets)
 	setsizes = sorted(fitemsets.itemsets.keys())
 	for setsize in setsizes:
@@ -219,8 +223,25 @@ def main(filepath):
 			rule = Rule(itemset=mycats, target='INCOME1')
 			# rule.build_rule_from_itemset()
 			rule_eval = rule.evaluate(data, eval_params, datalen=datalen)
-			print('{}: {}'.format(rule.rule_str, 'PASS' if rule_eval else 'FAIL'))
-			
+			# print('{}: {}'.format(rule.rule_str, 'PASS' if rule_eval else 'FAIL'))
+
+			if rule_eval:
+				passlist.append(rule)
+			else:
+				faillist.append(rule)
+	
+	genalgo = GeneticOptimizer(population_size=config['num_population'],\
+		generations=config['num_generations'],
+		crossover_rate=config['crossover_rate'], 
+		mutation_rate=config['mutation_rate'], 
+		rulemeta=rulemeta, data=data, 
+		kwargs={'aggressive_mutation': True, 'parallel': True})
+
+	quant = []
+	for rule in faillist:
+		newrule = genalgo.optimize(rule, eval_params)
+		quant.append(newrule)
+		
 
 
 if __name__ == "__main__":
