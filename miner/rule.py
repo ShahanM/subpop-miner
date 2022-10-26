@@ -25,34 +25,65 @@ class RuleMeta(BaseModel):
 # {'rule_dict': rule[0], 'rule_str': rule[1], 'support': supp, 'confidence': conf, 'threshold': subthreshold}
 # {'rule_dict': rule[0], 'rule_str': rule[1], 'support': supp, 'confidence': conf, 'q1': q1, 'q3': q3, 'threshold': subthreshold, 'true_frequency': freq}
 class Rule():
-	def __init__(self, *args, **kwargs) -> None:
-		self.kwargs = kwargs
-		for k, v in kwargs.items():
-			self.__setattr__(k, v)
+	def __init__(self, itemset: List[str], \
+		target: Optional[str]=None, \
+		continuous_vars: Optional[Dict[str, ContinuousVariable]]=None,\
+		discrete_vars: Optional[Dict[str, DiscreteVariable]]=None) -> None:
+		"""Initializes a Rule object.
 
-		if 'rule_dict' in kwargs:
-			self.rule_dict = kwargs['rule_dict']
-		else:
-			self.rule_dict = {}
+		Args:
+			itemset (list) [Optional]: The itemset to build the rule from.
+			target (str) [Optional]: The target variable.
+			continuous_vars (dict) [Optional]: The continuous variables.
+			discrete_vars (dict) [Optional]: The discrete variables.
+		"""
+
+		rule_dict: Dict[str, Union[str, int, float]] = {}
+		rule_str: str =  ''
+		# itemset: List[str]
+		# target: Optional[str]
+		# continuous_vars: Dict[str, ContinuousVariable]
+		# discrete_vars: Dict[str, DiscreteVariable]
 		
-		if 'query' in kwargs:
-			self.rule_str = kwargs['query']
-		else:
-			self.rule_str = ''
+		# rule_dict = {}
+		# rule_str = ''
 
-		if 'itemset' in kwargs:
-			self.itemset = kwargs['itemset']
-			self.rule_dict, self.rule_str = self.build_rule_from_itemset()
-		else:
-			self.itemset = []
+		# super().__init__(itemset=itemset, target=target, rule_dict=rule_dict, 
+		# 	rule_str=rule_str, continuous_vars=continuous_vars, \
+		# 	discrete_vars=discrete_vars)
+		
+		self.itemset = itemset
+		if len(self.itemset) > 0:
+			rule_dict, rule_str = self.build_rule_from_itemset()
+		# object.__setattr__(self, 'itemset', itemset)
+		# object.__setattr__(self, 'rule_dict', rule_dict)
+		self.rule_dict = rule_dict
+		self.rule_str = rule_str
+		# object.__setattr__(self, 'rule_str', rule_str)
 
-		if 'target' in kwargs:
-			self.target = kwargs['target']
-		else:
-			self.target = None
+		self.target = target
+		# object.__setattr__(self, 'target', target)
 
-		self.continuous_vars: Dict[str, ContinuousVariable] = {}
-		self.discrete_vars: Dict[str, DiscreteVariable] = {} 
+		if continuous_vars:
+			self.continuous_vars = continuous_vars
+		else:
+			self.continuous_vars = {}
+		# object.__setattr__(self, 'continuous_vars', continuous_vars)
+		if discrete_vars:
+			self.discrete_vars = discrete_vars
+		else:
+			self.discrete_vars = {}
+		# object.__setattr__(self, 'discrete_vars', discrete_vars)
+
+	def __repr__(self) -> str:
+		return {
+			'itemset': self.itemset,
+			'target': self.target,
+			'rule_dict': self.rule_dict,
+			'rule_str': self.rule_str,
+			'continuous_vars': self.continuous_vars,
+			'discrete_vars': self.discrete_vars
+		}.__repr__()
 
 	def add_continuous_variable(self, contvar: ContinuousVariable) -> None:
 		"""Adds a continuous variable to the rule.
@@ -60,10 +91,43 @@ class Rule():
 		Args:
 			contvar (ContinuousVariable): The continuous variable to add.
 		"""
-		self.continuous_vars.update({contvar.name: contvar})
-		self.rule_dict[contvar.name] = {'lbound': contvar.lbound, \
-			'ubound': contvar.ubound, 'correlation': contvar.correlation}
+		# self.continuous_vars.update({contvar.name: contvar})
+		# print(self.continuous_vars)
+		self.continuous_vars[contvar.name] = contvar
+		newitemset = self.itemset.copy()
+		# if len(self.continuous_vars) > 0:
+		# 	self.itemset.append(contvar.name + '>=' + str(contvar.lbound))
+		# 	self.itemset.append(contvar.name + '<=' + str(contvar.ubound))
+		
+		varupdt = 0
+		for i, item in enumerate(self.itemset):
+			if contvar.name in item:
+				if '>=' in item:
+					newitemset[i] = contvar.name + '>=' + str(contvar.lbound)
+					varupdt += 1
+				elif '<=' in item:
+					newitemset[i] = contvar.name + '<=' + str(contvar.ubound)
+					varupdt += 1
+		else:
+			if varupdt == 0:
+				newitemset.append(contvar.name + '>=' + str(contvar.lbound))
+				newitemset.append(contvar.name + '<=' + str(contvar.ubound))
+				
+		# object.__setattr__(self, 'itemset', newitemset)
+		self.itemset = newitemset
 
+		rule_dict, rule_str = self.build_rule_from_itemset()
+		self.rule_dict = rule_dict
+		self.rule_str = rule_str
+		# object.__setattr__(self, 'rule_dict', rule_dict)
+		# object.__setattr__(self, 'rule_str', rule_str)
+
+		# print(self.rule_str)
+		# cvar_dict = {'lbound': contvar.lbound, \
+			# 'ubound': contvar.ubound}
+
+		# object.__setattr__(self, 'rule_dict', {**self.rule_dict, **{contvar.name: cvar_dict}})
+		# self.rule_dict[contvar.name]
 
 	def build_rule_from_itemset(self, itemset: Optional[List[str]] = None) \
 		-> Tuple[dict, str]:
@@ -107,7 +171,9 @@ class Rule():
 
 		rule_str = ' & '.join(query_)
 		self.rule_dict = rule_dict
+		# object.__setattr__(self, 'rule_dict', rule_dict)
 		self.rule_str = rule_str
+		# object.__setattr__(self, 'rule_str', rule_str)
 
 		return rule_dict, rule_str
 
@@ -217,3 +283,14 @@ class Rule():
 		
 		return subpop[target].quantile(0.25), \
 			subpop[target].quantile(0.75), len(subpop)
+
+	def __copy__(self):
+		rule = Rule(self.itemset, self.target)
+		rule.discrete_vars = self.discrete_vars
+		for cont in self.continuous_vars.values():
+			rule.add_continuous_variable(cont)
+
+		return rule
+	
+	def copy(self):
+		return self.__copy__()
