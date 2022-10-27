@@ -40,29 +40,15 @@ class Rule():
 
 		rule_dict: Dict[str, Union[str, int, float]] = {}
 		rule_str: str =  ''
-		# itemset: List[str]
-		# target: Optional[str]
-		# continuous_vars: Dict[str, ContinuousVariable]
-		# discrete_vars: Dict[str, DiscreteVariable]
-		
-		# rule_dict = {}
-		# rule_str = ''
-
-		# super().__init__(itemset=itemset, target=target, rule_dict=rule_dict, 
-		# 	rule_str=rule_str, continuous_vars=continuous_vars, \
-		# 	discrete_vars=discrete_vars)
 		
 		self.itemset = itemset
 		if len(self.itemset) > 0:
 			rule_dict, rule_str = self.build_rule_from_itemset()
-		# object.__setattr__(self, 'itemset', itemset)
-		# object.__setattr__(self, 'rule_dict', rule_dict)
+
 		self.rule_dict = rule_dict
 		self.rule_str = rule_str
-		# object.__setattr__(self, 'rule_str', rule_str)
 
 		self.target = target
-		# object.__setattr__(self, 'target', target)
 
 		if continuous_vars:
 			self.continuous_vars = continuous_vars
@@ -98,13 +84,8 @@ class Rule():
 		Args:
 			contvar (ContinuousVariable): The continuous variable to add.
 		"""
-		# self.continuous_vars.update({contvar.name: contvar})
-		# print(self.continuous_vars)
 		self.continuous_vars[contvar.name] = contvar
 		newitemset = self.itemset.copy()
-		# if len(self.continuous_vars) > 0:
-		# 	self.itemset.append(contvar.name + '>=' + str(contvar.lbound))
-		# 	self.itemset.append(contvar.name + '<=' + str(contvar.ubound))
 		
 		varupdt = 0
 		for i, item in enumerate(self.itemset):
@@ -120,21 +101,49 @@ class Rule():
 				newitemset.append(contvar.name + '>=' + str(contvar.lbound))
 				newitemset.append(contvar.name + '<=' + str(contvar.ubound))
 				
-		# object.__setattr__(self, 'itemset', newitemset)
 		self.itemset = newitemset
 
 		rule_dict, rule_str = self.build_rule_from_itemset()
 		self.rule_dict = rule_dict
 		self.rule_str = rule_str
-		# object.__setattr__(self, 'rule_dict', rule_dict)
-		# object.__setattr__(self, 'rule_str', rule_str)
 
-		# print(self.rule_str)
-		# cvar_dict = {'lbound': contvar.lbound, \
-			# 'ubound': contvar.ubound}
+	def remove_continuous_variable(self, contvar: ContinuousVariable) -> None:
+		"""Removes a continuous variable from the rule.
 
-		# object.__setattr__(self, 'rule_dict', {**self.rule_dict, **{contvar.name: cvar_dict}})
-		# self.rule_dict[contvar.name]
+		Args:
+			contvar (ContinuousVariable): The continuous variable to remove.
+		"""
+		if contvar.name in self.continuous_vars:
+			del self.continuous_vars[contvar.name]
+			newitemset = self.itemset.copy()
+			for i, item in enumerate(self.itemset):
+				if contvar.name in item:
+					newitemset.remove(item)
+			self.itemset = newitemset
+
+			rule_dict, rule_str = self.build_rule_from_itemset()
+			self.rule_dict = rule_dict
+			self.rule_str = rule_str
+
+	def update_continuous_variable(self, contvar: ContinuousVariable) -> None:
+		"""Updates a continuous variable in the rule.
+
+		Args:
+			contvar (ContinuousVariable): The continuous variable to update.
+		"""
+		self.continuous_vars[contvar.name] = contvar
+		newitemset = self.itemset.copy()
+		for i, item in enumerate(self.itemset):
+			if contvar.name in item:
+				if '>=' in item:
+					newitemset[i] = contvar.name + '>=' + str(contvar.lbound)
+				elif '<=' in item:
+					newitemset[i] = contvar.name + '<=' + str(contvar.ubound)
+		self.itemset = newitemset
+
+		rule_dict, rule_str = self.build_rule_from_itemset()
+		self.rule_dict = rule_dict
+		self.rule_str = rule_str
 
 	def build_rule_from_itemset(self, itemset: Optional[List[str]] = None) \
 		-> Tuple[dict, str]:
@@ -178,9 +187,8 @@ class Rule():
 
 		rule_str = ' & '.join(query_)
 		self.rule_dict = rule_dict
-		# object.__setattr__(self, 'rule_dict', rule_dict)
+		
 		self.rule_str = rule_str
-		# object.__setattr__(self, 'rule_str', rule_str)
 
 		return rule_dict, rule_str
 
@@ -214,7 +222,6 @@ class Rule():
 		Returns:
 			bool: True if the rule is satisfied, False otherwise.
 		"""
-		# TODO - implement rule evaluation
 		# 1. Evaluate rule
 		# 2. Return True if rule is satisfies threshold, False otherwise
 
@@ -227,7 +234,6 @@ class Rule():
 		
 		if not datalen:
 			datalen = len(data)
-		# ruleset = set(map(str.strip, rule[1].split('&')))
 		assert target and len(target) > 0
 		q1, q3, subpopfreq = self.get_subpop_iqr(data, target)
 		self.q1 = q1
@@ -244,26 +250,8 @@ class Rule():
 		else:
 			popiqr = eval_params['minq3'] - eval_params['minq1']
 			minthreshold = eval_params['minq3'] + 3*popiqr - eval_params['delta']
-		# conf = freq/subpopfreq
-		# rulemeta = {'rule_dict': rule[0], 'rule_str': rule[1], 'support': supp, 'confidence': conf, \
-			# 'q1': q1, 'q3': q3, 'threshold': subthreshold, 'true_frequency': freq}
-		if support >= eval_params['minsup'] and subthreshold >= minthreshold:
+		if support >= eval_params['minsup'] and subthreshold <= minthreshold:
 			return True
-			# passcandidates.append(rule[1])
-			# if subthreshold <= minthreshold:
-				# passlist.append(rulemeta)
-				# if not skiprule(ruleset, finalcandidates):
-					# finalcandidates.append(ruleset)
-					# finallist.append(rulemeta)
-				# else:
-					# pass_prune_candidates.append(rulemeta)
-			# else:
-				# faillist.append(rulemeta)
-				# if not skiprule(ruleset, failprunecandidates):
-					# failcandidates.append(ruleset)
-					# gencandidates.append(rulemeta)
-				# else:
-					# fail_prune_candidates.append(rulemeta)
 		else:
 			return False
 
@@ -282,7 +270,6 @@ class Rule():
 			float: The upper quartile.
 			int: The number of rows in the subpopulation.
 		"""
-		# TODO - implement get_subpop_IQR
 		# 1. Get subpopulation
 		# 2. Get IQR
 		# 3. Return IQR, subpopulation size

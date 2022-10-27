@@ -1,137 +1,37 @@
 import pickle as pkl
+import time
 
+from tqdm import tqdm
+from multiprocessing import Pool
 import numpy as np
 import pandas as pd
 
 from miner.frequent_itemsets import FrequentItemsets
 from miner.optimizer import GeneticOptimizer
-from miner.rule import (ContinuousVariable,
-                        DiscreteVariableDescriptor, Rule, RuleMeta)
+from miner.rule import (ContinuousVariable, DiscreteVariableDescriptor, Rule,
+                        RuleMeta)
 from miner.utils import *
 from utils.data_utils import Config
 
 
-def load_data(filepath, relev_cat):
-	all_data = pd.read_csv(filepath, nrows=300)
+def load_data(filepath, relev_cat, chunksize=10000, totalrows=None, rowstoload=None):
+	if totalrows:
+		data = []
+		if rowstoload:
+			totalrows = min(rowstoload, totalrows)
+			chunksize = min(chunksize, rowstoload)
 
-	var_list = ['AAGE', 'AANCSTR1', 'AANCSTR2', 'AAUGMENT', 'ABIRTHPL', 'ACITIZEN', 
-				'ACLASS', 'ADEPART', 'ADISABL1', 'ADISABL2', 'AENGLISH', 'AFERTIL', 
-				'AGE', 'AHISPAN', 'AHOUR89', 'AHOURS', 'AIMMIGR', 'AINCOME1', 
-				'AINCOME2', 'AINCOME3', 'AINCOME4', 'AINCOME5', 'AINCOME6', 
-				'AINCOME7', 'AINCOME8', 'AINDUSTR', 'ALABOR', 'ALANG1', 'ALANG2', 
-				'ALSTWRK', 'AMARITAL', 'AMEANS', 'AMIGSTAT', 'AMOBLLIM', 'AMOBLTY', 
-				'ANCSTRY1', 'ANCSTRY2', 'AOCCUP', 'APERCARE', 'APOWST', 'ARACE', 
-				'ARELAT1', 'ARIDERS', 'ASCHOOL', 'ASERVPER', 'ASEX', 'ATRAVTME', 
-				'AVAIL', 'AVETS1', 'AWKS89', 'AWORK89', 'AYEARSCH', 'AYRSSERV', 
-				'CITIZEN', 'CLASS', 'DEPART', 'DISABL1', 'DISABL2', 'ENGLISH', 
-				'FEB55', 'FERTIL', 'HISPANIC', 'HOUR89', 'HOURS', 'IMMIGR', 
-				'INCOME1', 'INCOME2', 'INCOME3', 'INCOME4', 'INCOME5', 'INCOME6', 
-				'INCOME7', 'INCOME8', 'INDUSTRY', 'KOREAN', 'LANG1', 'LANG2', 
-				'LOOKING', 'MARITAL', 'MAY75880', 'MEANS', 'MIGPUMA', 'MIGSTATE', 
-				'MILITARY', 'MOBILITY', 'MOBILLIM', 'OCCUP', 'OTHRSERV', 'PERSCARE', 
-				'POB', 'POVERTY', 'POWPUMA', 'POWSTATE', 'PWGT1', 'RACE', 'RAGECHLD', 
-				'REARNING', 'RECTYPE', 'RELAT1', 'RELAT2', 'REMPLPAR', 'RIDERS', 
-				'RLABOR', 'ROWNCHLD', 'RPINCOME', 'RPOB', 'RRELCHLD', 'RSPOUSE', 
-				'RVETSERV', 'SCHOOL', 'SEPT80', 'SERIALNO', 'SEX', 'SUBFAM1', 
-				'SUBFAM2', 'TMPABSNT', 'TRAVTIME', 'VIETNAM', 'WEEK89', 'WORK89', 
-				'WORKLWK', 'WWII', 'YEARSCH', 'YEARWRK', 'YRSSERV']
-
-	drop_cols = [var for var in var_list if var not in relev_cat]
-	all_data = all_data.drop(columns=drop_cols)
-
-	relat1 = { 
-		0: 'Householder',
-		1: 'Husband/wife',
-		2: 'Son/daughter',
-		3: 'Stepson/stepdaughter',
-		4: 'Brother/sister',
-		5: 'Father/mother',
-		6: 'Grandchild',
-		7: 'Other relative/Not related',
-		8: 'Roomer/boarder/foster child',
-		9: 'Housemate/roommate',
-		10: 'Unmarried partner',
-		11: 'Other nonrelative/Group quarters',
-		12: 'Institutionalized person',
-		13: 'Other persons in group quarters'
-	}
-	industry_class = {0: 'Unemployed', 1: 'Agriculture', 2: 'Mining',
-						3: 'Construction', 4: 'Manufacturing',
-						5: 'Transportation', 6: 'Trade', 7: 'Finance',
-						8: 'Service', 9: 'Administration', 10: 'Military',
-						11: 'Experience Unemployed'}
-	occup_class = {0: 'Unemployed', 1: 'Executive', 2: 'Professional',
-					3: 'Technical', 4: 'Service Occupation',
-					5: 'Protective Service', 6: 'Farming', 7: 'Precision',
-					8: 'Operators', 9: 'Military',
-					10: 'Experienced Unemployed'}
-
-	rlabor = {
-		0: 'N/A (less than 16 years old)',
-		1: 'Civilian employed, at work',
-		2: 'Civilian employed, with a job but not at work',
-		3: 'Unemployed',
-		4: 'Armed forces, at work',
-		5: 'Armed forces, with a job but not at work',
-		6: 'Not in labor force'
-	}
-
-	disbl1 = {
-		0: 'N/A (less than 16 years)',
-		1: 'Yes, limited in kind or amount of work',
-		2: 'No, not limited'
-	}
-
-	class_var = {
-		0: 'N/A (less than 16 years old/unemployed who never worked/NILF who last worked prior to 1985)',
-		1: 'employee of a private for profit company or business or of an individual, for wages, salary, or commissions',
-		2: 'Employee of a private not-for-profit, tax-exempt, or charitable organization',
-		3: 'Local government employee (city, county, etc.)',
-		4: 'State government employee',
-		5: 'Federal government employee',
-		6: 'Self-employed in own not incorporated business, professional practice, or farm',
-		7: 'Self-employed in own incorporated business, professional practice or farm',
-		8: 'Working without pay in family business or farm',
-		9: 'Unemployed, last worked in 1984 or earlier'
-	}
-
-	hour89_var = {
-		1: 'Part-time',
-		0: 'Full-time'
-	}
-
-	week89_var = {
-		1: 'Seasonal or Part-Year',
-		0: 'Full-time'
-	}
-
-	yearsch = {
-		0: 'N/a Less Than 3 Yrs. Old',
-		1: 'No School Completed',
-		2: 'Nursery School',
-		3: 'Kindergarten',
-		4: '1st, 2nd, 3rd, or 4th Grade',
-		5: '5th, 6th, 7th, or 8th Grade',
-		6: '9th Grade',
-		7: '10th Grade',
-		8: '11th Grade',
-		9: '12th Grade, No Diploma',
-		10: 'High School Graduate, Diploma or Ged',
-		11: 'Some Coll., But No Degree',
-		12: 'Associate Degree in Coll., Occupational',
-		13: 'Associate Degree in Coll., Academic Prog',
-		14: 'Bachelors Degree',
-		15: 'Masters Degree',
-		16: 'Professional Degree',
-		17: 'Doctorate Degree'
-	}
-
-	cat_dict = {
-		'RELAT1': relat1, 'INDUSTRY_CLASS': industry_class,
-		'OCCUP_CLASS': occup_class, 'RLABOR': rlabor,
-		'DISABL1': disbl1, 'CLASS': class_var, 'HOUR89_CAT': hour89_var,
-		'WEEK89_CAT': week89_var, 'YEARSCH': yearsch
-	}
+		with tqdm(total=totalrows) as pbar:
+			for chunk in tqdm(pd.read_csv(filepath, chunksize=chunksize, low_memory=False)):
+				data.append(chunk)
+				pbar.update(chunksize)
+		
+		all_data = pd.concat(data)
+	else:
+		all_data = pd.read_csv(filepath, nrows=rowstoload)
+	
+	print(relev_cat)
+	all_data = all_data[relev_cat]
 
 	all_data['HOUR89_CAT'] = all_data.apply(lambda row: 1 if row['HOUR89'] < 30 else 0, axis=1)
 	all_data['WEEK89_CAT'] = all_data.apply(lambda row: 1 if row['WEEK89'] < 26 else 0, axis=1)
@@ -146,23 +46,14 @@ def get_config(all_data):
 	config = {}
 
 	# General Settings
-	config['popq1'] = all_data['INCOME1'].quantile(0.25)
-	config['popq3'] = all_data['INCOME1'].quantile(0.75)
 	config['delta'] =40000
-
 	config['delta2'] = 20000
-	
-	config['pop_iqr'] = config['popq3'] - config['popq1']
-	config['pop_threshold'] = config['popq3'] + 3*config['pop_iqr']
-
-	yrsch_min = min(list(all_data['YEARSCH']))
-	yrsch_max = max(list(all_data['YEARSCH']))
 
 	# Setting for support and confidence across all algorithms
 	# frequent itemset, association rule, genetic algorithm fitness
 	config['minsup'] = 0.01
-	config['minconf'] = 0.95
 	config['max_rulelen'] = 3
+	# config['minconf'] = 0.95
 
 	# Settings for Genetic Algorithm
 	config['num_population'] = 250
@@ -179,7 +70,6 @@ def build_rulemeta(all_data, relevant_col_types, target_col):
 	contvars = {}
 	for col, coltype in relevant_col_types:
 		if coltype == 'cat':
-			# print(list(all_data[col].unique()))
 			var = DiscreteVariableDescriptor(name=col, values=sorted(list(all_data[col].unique())))
 			discvars[col] = var
 		elif coltype == 'cont':
@@ -193,21 +83,90 @@ def build_rulemeta(all_data, relevant_col_types, target_col):
 	
 	return rulemeta
 
+def run_optimizer(optimizer, rule, eval_params, datalen):
+		newrule = optimizer.optimize(rule, eval_params)
+		if newrule.evaluate(optimizer.data, eval_params, datalen=datalen):
+			return newrule
+		else:
+			return None
+
+
+def parallel_gen(optimizer, rules, num_processes, eval_params, datalen):
+	with Pool(processes=num_processes) as pool:
+		results = pool.starmap(run_optimizer, [(optimizer, rule, eval_params, datalen) for rule in rules])
+
+		return [r for r in results if r is not None]
+
 
 def main(filepath):
-
+	starttime = time.time()
+	print('Starting demo for rule mining on the 1990 Census Income Dataset')
+	print('Preparing to load data...')
+	
+	startsubtime = time.time()
+	totalrows = sum(1 for row in open(filepath, 'r'))
+	print('Time taken to count rows: {} seconds'.format(time.time() - startsubtime))
+	print('------------------\n')
+	
+	print('Loading total rows: %d' % totalrows)
+	startsubtime = time.time()
 	relev_cat = ['DISABL1', 'CLASS', 'INDUSTRY_CLASS', 'OCCUP_CLASS', \
 		'RLABOR', 'RELAT1']
+
 	relev_cont = ['INCOME1', 'HOUR89', 'AGE', 'WEEK89', 'YEARSCH']
+
 	relev_cat_type = [('DISABL1', 'cat'), ('CLASS', 'cat'), ('INDUSTRY_CLASS', 'cat'), ('OCCUP_CLASS', 'cat'), \
 		('RLABOR', 'cat'), ('HOUR89', 'cont'), ('YEARSCH', 'cont'), ('RELAT1', 'cat'), ('WEEK89', 'cont')]
-	data = load_data(filepath, relev_cat+relev_cont)
-	config = get_config(data)
-	rulemeta = build_rulemeta(data, relev_cat_type, 'INCOME1')
+	# relev_cat_type = [('DISABL1', 'cat'), ('CLASS', 'cat'), ('INDUSTRY_CLASS', 'cat'), ('OCCUP_CLASS', 'cat'), \
+	# 	('RLABOR', 'cat'), ('HOUR89_CAT', 'cat'), ('YEARSCH', 'cont'), ('RELAT1', 'cat'), ('WEEK89_CAT', 'cat')]
+	
+	data = load_data(filepath, relev_cat+relev_cont, chunksize=100000, totalrows=totalrows)
+	# data = load_data(filepath, relev_cat+relev_cont, rowstoload=1000)
+	print('Time taken to load data: {} seconds'.format(time.time() - startsubtime))
+	print('------------------\n')
 
+	print('Preparing data for rule mining...')
+	startsubtime = time.time()
+	print('Loading config...')
+	config = get_config(data)
+	print('Generating rule metadata...')
+	print('Loaded config with the following settings:')
+	print('General Settings ------------------')
+	print('Target threshold delta: %d' % config['delta'])
+	print('Pruning parameter delta2: %d' % config['delta2'])
+	print('Minimum support: %f' % config['minsup'])
+	print('Maximum rule length: %d' % config['max_rulelen'])
+	print('Genetic Algorithm Settings --------')
+	print('Population size: %d' % config['num_population'])
+	print('Number of generations: %d' % config['num_generations'])
+	print('Crossover rate: %f' % config['crossover_rate'])
+	print('Mutation rate: %f' % config['mutation_rate'])
+	rulemeta = build_rulemeta(data, relev_cat_type, 'INCOME1')
+	print('Relevant variable summary ------------------')
+	print('Discrete variables:')
+	for i, (varname, var) in enumerate(rulemeta.discrete_vars.items()):
+		print('{}. {}: categories={}'.format(i, var.name, var.values))
+	print('Continuous variables:')
+	for i, (varname, var) in enumerate(rulemeta.continuous_vars.items()):
+		print('{}. {}: lbound={}, ubound={}, correlation={}'.format(i, var.name, var.lbound, var.ubound, var.correlation))
+	print('Time taken to prepare data: {} seconds'.format(time.time() - startsubtime))
+	print('------------------\n')
+	
+	print('Starting rule mining...')
+	startsubtime = time.time()
+	print('Starting frequent itemset mining...')
 	fitemsets = FrequentItemsets(min_support=config['minsup'], max_len=config['max_rulelen'])
 	fitemsets.find_frequent_itemsets(data, relev_cat)
+	num_fitemsets = sum([len(itemst) for itemst in fitemsets.itemsets.values()])
+	print('Found %d frequent itemsets' % num_fitemsets)
+	print('Time taken to mine frequent itemsets: {} seconds'.format(time.time() - startsubtime))
+	print('------------------\n')
+
+	print('Evaluating itemsets for outlier...')
+	startsubtime = time.time()
 	datalen = len(data)
+	config['popq1'] = data['INCOME1'].quantile(0.25)
+	config['popq3'] = data['INCOME1'].quantile(0.75)
 	eval_params = {
 				'minsup': config['minsup'],
 				'minq1': config['popq1'],
@@ -219,14 +178,11 @@ def main(filepath):
 	faillist = []
 
 	seen = []
-	# print(fitemsets.itemsets)
 	setsizes = sorted(fitemsets.itemsets.keys())
-	for setsize in setsizes:
+	for setsize in tqdm(setsizes): # TODO parallelize this
 		itemset = fitemsets.itemsets[setsize]
 		for fset, freq in itemset.items():
-			# print(fset, freq)
 			mycats = [fitemsets.id2item[mycat] for mycat in iter(fset)]
-			# print(mycats, freq)
 			rule = Rule(itemset=mycats, target='INCOME1')
 			# rule.build_rule_from_itemset()
 			rule_eval = rule.evaluate(data, eval_params, datalen=datalen)
@@ -239,33 +195,67 @@ def main(filepath):
 					passlist.append(rule)
 			else:
 				faillist.append(rule)
-	
+	print('{} subpopulation rules skipped'.format(len(seen)))
+	print('{} subpupulation that PASSED outlier evaluation.'.format(len(passlist)))
+	print('{} subpupulation that FAILED outlier evaluation.'.format(len(faillist)))
+	print('Time taken to evaluate itemsets: {} seconds'.format(time.time() - startsubtime))
+	print('------------------\n')
+
+	print('Pruning passlist and removing overlapping subpulation rules...')
+	startsubtime = time.time()
 	finallist = delta_prune_empty(passlist, config['delta2'])
+	print('{} subpopulation rules after pruning'.format(len(finallist)))
+	print('Time taken to prune passlist: {} seconds'.format(time.time() - startsubtime))
+	print('------------------\n')
+
+	print('Pruning list of failed subpopulation rules before adding continuous variables...')
+	startsubtime = time.time()
 	gencandidates = delta_prune_empty(faillist, config['delta2'])
 	gencandidates = delta_prune(finallist, gencandidates, 20000)
-	
+	print('{} subpopulation rules after pruning'.format(len(gencandidates)))
+	print('Time taken to prune faillist: {} seconds'.format(time.time() - startsubtime))
+	print('------------------\n')
+
+	print('Adding continuous variables to rules with Genetic Algorithm...')
+	startsubtime = time.time()
 	genalgo = GeneticOptimizer(population_size=config['num_population'],\
 		generations=config['num_generations'],
 		crossover_rate=config['crossover_rate'], 
 		mutation_rate=config['mutation_rate'], 
 		rulemeta=rulemeta, data=data, 
-		kwargs={'aggressive_mutation': True, 'parallel': True, \
-			'force_int_bounds': True})
+		aggressive_mutation=True, parallel=False, \
+		force_int_bounds=True)
 
-	quant = []
-	for rule in gencandidates:
-		newrule = genalgo.optimize(rule, eval_params)
-		quant.append(newrule)
+	# quant = []
+	# for rule in gencandidates: # TODO - parallelize this
+	# 	newrule = genalgo.optimize(rule, eval_params)
+	# 	if newrule.evaluate(data, eval_params, datalen=datalen):
+	# 		quant.append(newrule)
+	quant = parallel_gen(genalgo, gencandidates, 4, eval_params, datalen)
 
+	print('Found outlier {} subpopulation with continuous variables.'.format(len(quant)))
+	print('Time taken to add continuous variables: {} seconds'.format(time.time() - startsubtime))
+	print('------------------\n')
+
+	print('Pruning list of subpopulation rules with continuous variables...')
+	startsubtime = time.time()
 	cleanquant = delta_prune_empty(quant, config['delta2'])
 	finalquant = delta_prune(finallist, cleanquant, 20000)
+	print('Found outlier {} subpopulation with continuous variables after pruning.'.format(len(finalquant)))
+	print('Time taken to prune quant: {} seconds'.format(time.time() - startsubtime))
+	print('------------------\n')
 
+	print('Merging all subpopulation rules and writing to file...')
+	startsubtime = time.time()
 	merged = finallist + finalquant
 
 	with open('mergedlst.pkl', 'wb') as f:
 		pkl.dump(merged, f)
-
-
+	
+	print('Total subpopulation rules found: {}'.format(len(merged)))
+	print('Time taken to merge rules: {} seconds'.format(time.time() - startsubtime))
+	print('Total time taken: {} seconds'.format(time.time() - starttime))
+	print('------------------\n')
 
 
 if __name__ == "__main__":

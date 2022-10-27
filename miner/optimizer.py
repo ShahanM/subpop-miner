@@ -44,6 +44,7 @@ class GeneticOptimizer(OptimizerBase):
 		self.rulemeta = rulemeta
 		self.data = data
 		self.datalen = len(data)
+
 		self.aggressive_mutation = kwargs.get('aggressive_mutation', False)
 		self.parallel = kwargs.get('parallel', False)
 		self.force_int_bounds = kwargs.get('force_int_bounds', False)
@@ -68,18 +69,16 @@ class GeneticOptimizer(OptimizerBase):
 		if len(rule.continuous_vars.keys()) > 0:
 			# raise ValueError('Rule already contains continuous variables')
 			print('Rule already contains continuous variables')
-			print(rule)
 			# return rule
 
-		# TODO - implement genetic algorithm
 		# 1. Generate initial population
 		population = self.__generate_population(rule)
+		# 2. Evaluate population
+		if self.parallel:
+			population = self.__evaluate_parallel(population, eval_params)
+		else:
+			population = self.__evaluate(population, eval_params)
 		for i in tqdm(range(self.generations)):
-			# 2. Evaluate population
-			if self.parallel:
-				population = self.__evaluate_parallel(population, eval_params)
-			else:
-				population = self.__evaluate(population, eval_params)
 			# 3. Select parents
 			evo_candidates = self.__select(population)
 			# 4. Crossover parents
@@ -94,9 +93,6 @@ class GeneticOptimizer(OptimizerBase):
 				new_generation = self.__mutate(new_generation)
 				new_generation = self.__evaluate(new_generation, eval_params)
 
-			# new_generation = self.__crossover(evo_candidates)
-			# new_generation = self.__mutate(new_generation)
-			# new_generation = self.__evaluate(new_generation, eval_params)
 			# 7. Select survivors
 			new_generation = self.__select(new_generation)
 			# 8. Replace population with offspring
@@ -104,10 +100,8 @@ class GeneticOptimizer(OptimizerBase):
 			# 9. Repeat steps 2-7 until termination criteria is met
 
 		# 10. Return best individual
-		# print('Best individual: ', population[0])
 		return population[0].rule
 
-	# TODO - can be parallelized
 	def __mutate(self, evo_candidates:List[Individual]) -> List[Individual]:
 		"""Mutates the offspring.
 
@@ -117,7 +111,6 @@ class GeneticOptimizer(OptimizerBase):
 		Returns:
 			List[Individual]: The mutated offspring based on the mutation rate.
 		"""
-		# TODO - implement mutation
 		# 1. Mutate offspring
 		# 2. Return offspring
 		mutated = []
@@ -143,11 +136,8 @@ class GeneticOptimizer(OptimizerBase):
 		Returns:
 			List[Individual]: The mutated offspring based on the mutation rate.
 		"""
-		# TODO - implement mutation
 		# 1. Mutate offspring
 		# 2. Return offspring
-
-		# TODO - parallelize
 
 		number_to_mutate = math.ceil(len(evo_candidates) * self.mutation_rate)
 		random.shuffle(evo_candidates)
@@ -168,7 +158,6 @@ class GeneticOptimizer(OptimizerBase):
 		Returns:
 			Individual: The mutated individual.
 		"""
-		# TODO - implement mutation
 		# 1. Mutate individual
 		# 2. Return individual
 		cvars = []
@@ -190,7 +179,6 @@ class GeneticOptimizer(OptimizerBase):
 
 		return individual
 
-	# can be parallelized
 	def __crossover(self, evo_candidates:List[Individual]) -> List[Individual]:
 		"""Crossover the selected individuals.
 
@@ -200,7 +188,6 @@ class GeneticOptimizer(OptimizerBase):
 		Returns:
 			List[Individual]: The offspring of the selected individuals.
 		"""
-		# TODO - implement crossover
 		# 1. Crossover selected individuals
 		# 2. Return offspring
 
@@ -220,12 +207,9 @@ class GeneticOptimizer(OptimizerBase):
 		Returns:
 			List[Individual]: The offspring of the selected individuals.
 		"""
-		# TODO - implement crossover
 		# 1. Crossover selected individuals
 		# 2. Return offspring
 
-		# parallelize crossover
-		# pool = Pool()
 		offspring =  []
 		with Pool(processes=8) as pool:
 			evo_pairs = [(evo_candidates[i], evo_candidates[i+1]) for i in range(0, len(evo_candidates)-2, 2)]
@@ -238,12 +222,14 @@ class GeneticOptimizer(OptimizerBase):
 	def __crossover_pair(self, parent1:Individual, parent2:Individual) -> \
 		List[Individual]:
 
-		# TODO - implement crossover
 		# 1. Crossover parents
 		# 2. Return offspring
 
 		# randomly pick 1 continuous variable to crossover
-		cvar = random.choice(list(parent1.rule.continuous_vars.values()))
+		if len(parent1.rule.continuous_vars) > 1:
+			cvar = random.choice(list(parent1.rule.continuous_vars.values()))
+		else:
+			cvar = list(parent1.rule.continuous_vars.values())[0]
 
 		# create offspring 1 with bounds from parent1
 		offspring1 = parent1.rule.copy() # possible bug here
@@ -251,17 +237,35 @@ class GeneticOptimizer(OptimizerBase):
 		# create offspring 2 with bounds from parent2
 		offspring2 = parent2.rule.copy() # possible bug here
 
-		# pick bounds from parent1
-		# if variable is positively correlated
-		if cvar.correlation > 0:
-			offspring1.continuous_vars[cvar.name].ubound = \
-				parent2.rule.continuous_vars[cvar.name].ubound
-			offspring2.continuous_vars[cvar.name].ubound = \
-				parent1.rule.continuous_vars[cvar.name].ubound
+		# if cvar exists in both parents, do nothing (crossing bounds is just 
+		# swapping upper bounds for positive correlation and lower bounds for
+		# negative correlation)
+		# So, we only need to check if cvar is missing in one of the parents
+		if cvar.name not in offspring2.continuous_vars:
+			# if variable is positively correlated
+			# if cvar.correlation > 0:
+			if len(offspring1.continuous_vars) == 1:
+				# if both parents have only 1 continous variable each
+				# do nothing
+
+				# if parent2 has more than 1 continuous variable
+				# add one missing variable to offspring1
+				if len(offspring2.continuous_vars) > 1:
+					nvar = random.choice(list(offspring2.continuous_vars.values()))
+					offspring1.update_continuous_variable(nvar)
+			
+			# add missing variable to offspirng2
+			offspring2.add_continuous_variable(cvar)
+
+			# if parent1 has more than 1 continuous variable
+			# remove cvar from offspring1
+			if len(offspring1.continuous_vars) > 1:
+				offspring1.remove_continuous_variable(cvar)
+
 
 		offspring1 = Individual(rule=offspring1, fitness=parent1.fitness)
 		offspring2 = Individual(rule=offspring2, fitness=parent2.fitness)
-
+	
 		# create offspring 3 as a duplicate of parent1
 		# and upper bound from parent1
 		offspring3 = parent1.rule.copy()
@@ -285,7 +289,6 @@ class GeneticOptimizer(OptimizerBase):
 		Returns:
 			list: The selected individuals.
 		"""
-		# TODO - implement selection
 		# 1. Select individuals based on fitness
 		# 2. Return selected individuals
 
@@ -294,7 +297,6 @@ class GeneticOptimizer(OptimizerBase):
 
 		return population[:int(self.crossover_rate * self.population_size)]
 
-	# Can be parallelized
 	def __evaluate(self, population:List[Individual], \
 		eval_params: Dict[str, Union[int, float]]) -> List[Individual]:
 		"""Evaluates the fitness of each individual in the population.
@@ -306,7 +308,6 @@ class GeneticOptimizer(OptimizerBase):
 			List[Individual]: The evaluated population with fitness values 
 								sorted in descending order.
 		"""
-		# TODO - implement evaluation
 		# 1. Evaluate each individual
 		# 2. Return evaluated population
 
@@ -328,18 +329,13 @@ class GeneticOptimizer(OptimizerBase):
 			List[Individual]: The evaluated population with fitness values 
 								sorted in descending order.
 		"""
-		# TODO - implement evaluation
 		# 1. Evaluate each individual
 		# 2. Return evaluated population
 
-		# parallelize
-		# pool = Pool()
 		results = []
 		with Pool(processes=8) as pool:
 			results = pool.starmap(self.__get_fitness, \
 				[(individual.rule, eval_params) for individual in population])
-		# pool.close()
-		# pool.join()
 
 		for i in range(len(population)):
 			population[i].fitness = results[i]
@@ -358,7 +354,6 @@ class GeneticOptimizer(OptimizerBase):
 		Returns:
 			float: The fitness of the individual.
 		"""
-		# TODO - implement fitness evaluation
 		# 1. Evaluate fitness of individual
 		# 2. Return fitness
 
@@ -393,13 +388,19 @@ class GeneticOptimizer(OptimizerBase):
 		Returns:
 			List[Individual]: The new population.
 		"""
-		# TODO - implement replacement
 		# 1. Replace least fit individuals in population with offspring
 		# 2. Return new population
 
 		# replace the last len(offspring) individuals in the population
 		# with the offspring
-		population[-len(offspring):] = offspring
+		if len(population) == len(offspring):
+			offspring.sort(key=lambda x: x.fitness, reverse=True)
+			population[-len(offspring)/2:] = offspring[:len(offspring)/2]
+		elif len(population) > len(offspring):
+			population[-len(offspring):] = offspring
+		else:
+			offspring.sort(key=lambda x: x.fitness, reverse=True)
+			population = offspring[:len(population)]
 
 		return population
 
@@ -409,14 +410,15 @@ class GeneticOptimizer(OptimizerBase):
 		Returns:
 			List[Individual]: The generated population.
 		"""
-		# TODO - implement population generation
 		# 1. Generate individuals
 		# 2. Return population
 
 		population = []
+		contvars = list(self.rulemeta.continuous_vars.values())
 		for i in range(self.population_size):
 			newrule = Rule(rule.itemset[:], rule.target, discrete_vars=rule.discrete_vars.copy())
-			for contvar in self.rulemeta.continuous_vars.values():
+			numcontvars = random.randint(1, len(self.rulemeta.continuous_vars))
+			for contvar in random.sample(contvars, numcontvars):
 				cont = ContinuousVariable(name=contvar.name, \
 					lbound=contvar.lbound, ubound=contvar.ubound, \
 					correlation=contvar.correlation)
@@ -431,7 +433,6 @@ class GeneticOptimizer(OptimizerBase):
 						newrule.add_continuous_variable(cont)
 				else:
 					newrule.add_continuous_variable(cont)
-			# print(rule)
 			new_individual = Individual(rule=newrule, fitness=0.0)
 			population.append(new_individual)
 
