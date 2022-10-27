@@ -73,6 +73,13 @@ class Rule():
 			self.discrete_vars = discrete_vars
 		else:
 			self.discrete_vars = {}
+		
+		# extra features for convenience but aren't always used
+		self.numrows: int = 0
+		self.support: float = 0.0
+		self.q1: Union[int, float] = 0.0
+		self.q3: Union[int, float] = 0.0
+		self.target_threshold: Union[int, float] = 0.0
 		# object.__setattr__(self, 'discrete_vars', discrete_vars)
 
 	def __repr__(self) -> str:
@@ -223,9 +230,14 @@ class Rule():
 		# ruleset = set(map(str.strip, rule[1].split('&')))
 		assert target and len(target) > 0
 		q1, q3, subpopfreq = self.get_subpop_iqr(data, target)
+		self.q1 = q1
+		self.q3 = q3
+		self.numrows = subpopfreq
 		support = subpopfreq/datalen
+		self.support = support
 		subpopiqr = q3 - q1
 		subthreshold = q3 + 3*subpopiqr
+		self.target_threshold = subthreshold
 
 		if 'minthreshold' in eval_params:
 			minthreshold = eval_params['minthreshold']

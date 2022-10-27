@@ -1,14 +1,18 @@
-import pandas as pd
-from miner.rule import DiscreteVariable, DiscreteVariableDescriptor, RuleMeta, ContinuousVariable, Rule
-from miner.frequent_itemsets import FrequentItemsets
-import numpy as np
-from miner.optimizer import GeneticOptimizer
+import pickle as pkl
 
+import numpy as np
+import pandas as pd
+
+from miner.frequent_itemsets import FrequentItemsets
+from miner.optimizer import GeneticOptimizer
+from miner.rule import (ContinuousVariable,
+                        DiscreteVariableDescriptor, Rule, RuleMeta)
+from miner.utils import *
 from utils.data_utils import Config
 
 
 def load_data(filepath, relev_cat):
-	all_data = pd.read_csv(filepath, nrows=5000)
+	all_data = pd.read_csv(filepath, nrows=300)
 
 	var_list = ['AAGE', 'AANCSTR1', 'AANCSTR2', 'AAUGMENT', 'ABIRTHPL', 'ACITIZEN', 
 				'ACLASS', 'ADEPART', 'ADISABL1', 'ADISABL2', 'AENGLISH', 'AFERTIL', 
@@ -145,6 +149,8 @@ def get_config(all_data):
 	config['popq1'] = all_data['INCOME1'].quantile(0.25)
 	config['popq3'] = all_data['INCOME1'].quantile(0.75)
 	config['delta'] =40000
+
+	config['delta2'] = 20000
 	
 	config['pop_iqr'] = config['popq3'] - config['popq1']
 	config['pop_threshold'] = config['popq3'] + 3*config['pop_iqr']
@@ -212,6 +218,7 @@ def main(filepath):
 	passlist = []
 	faillist = []
 
+	seen = []
 	# print(fitemsets.itemsets)
 	setsizes = sorted(fitemsets.itemsets.keys())
 	for setsize in setsizes:
@@ -226,22 +233,39 @@ def main(filepath):
 			# print('{}: {}'.format(rule.rule_str, 'PASS' if rule_eval else 'FAIL'))
 
 			if rule_eval:
-				passlist.append(rule)
+				rset = set(rule.itemset)
+				if not skiprule(rset, seen):
+					seen.append(rset)
+					passlist.append(rule)
 			else:
 				faillist.append(rule)
+	
+	finallist = delta_prune_empty(passlist, config['delta2'])
+	gencandidates = delta_prune_empty(faillist, config['delta2'])
+	gencandidates = delta_prune(finallist, gencandidates, 20000)
 	
 	genalgo = GeneticOptimizer(population_size=config['num_population'],\
 		generations=config['num_generations'],
 		crossover_rate=config['crossover_rate'], 
 		mutation_rate=config['mutation_rate'], 
 		rulemeta=rulemeta, data=data, 
-		kwargs={'aggressive_mutation': True, 'parallel': True})
+		kwargs={'aggressive_mutation': True, 'parallel': True, \
+			'force_int_bounds': True})
 
 	quant = []
-	for rule in faillist:
+	for rule in gencandidates:
 		newrule = genalgo.optimize(rule, eval_params)
 		quant.append(newrule)
-		
+
+	cleanquant = delta_prune_empty(quant, config['delta2'])
+	finalquant = delta_prune(finallist, cleanquant, 20000)
+
+	merged = finallist + finalquant
+
+	with open('mergedlst.pkl', 'wb') as f:
+		pkl.dump(merged, f)
+
+
 
 
 if __name__ == "__main__":

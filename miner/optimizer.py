@@ -46,6 +46,7 @@ class GeneticOptimizer(OptimizerBase):
 		self.datalen = len(data)
 		self.aggressive_mutation = kwargs.get('aggressive_mutation', False)
 		self.parallel = kwargs.get('parallel', False)
+		self.force_int_bounds = kwargs.get('force_int_bounds', False)
 
 		self.min_interval = None
 
@@ -103,7 +104,7 @@ class GeneticOptimizer(OptimizerBase):
 			# 9. Repeat steps 2-7 until termination criteria is met
 
 		# 10. Return best individual
-		print('Best individual: ', population[0])
+		# print('Best individual: ', population[0])
 		return population[0].rule
 
 	# TODO - can be parallelized
@@ -178,7 +179,8 @@ class GeneticOptimizer(OptimizerBase):
 			# randomly pick 1 continuous variable to mutate
 			cvars = [random.choice(list(individual.rule.continuous_vars.values()))]
 		for cvar in cvars:
-			value = random.uniform(cvar.lbound, cvar.ubound)
+			value = self.__generate_random_bound(cvar.lbound, cvar.ubound, self.force_int_bounds)
+			# value = random.uniform(cvar.lbound, cvar.ubound)
 			# mutate upper bound if variable is positively correlated
 			if cvar.correlation > 0:
 				individual.rule.continuous_vars[cvar.name].ubound = value
@@ -187,7 +189,7 @@ class GeneticOptimizer(OptimizerBase):
 				individual.rule.continuous_vars[cvar.name].lbound = value
 
 		return individual
-		
+
 	# can be parallelized
 	def __crossover(self, evo_candidates:List[Individual]) -> List[Individual]:
 		"""Crossover the selected individuals.
@@ -420,9 +422,9 @@ class GeneticOptimizer(OptimizerBase):
 					correlation=contvar.correlation)
 
 				if contvar.correlation > 0:
-					cont.ubound = random.uniform(contvar.lbound, contvar.ubound)
+					cont.ubound = self.__generate_random_bound(cont.lbound, cont.ubound, self.force_int_bounds)
 				elif contvar.correlation < 0:
-					cont.lbound = random.uniform(contvar.lbound, contvar.ubound)
+					cont.lbound = self.__generate_random_bound(cont.lbound, cont.ubound, self.force_int_bounds)
 				
 				if self.min_interval:
 					if cont.ubound - cont.lbound > self.min_interval:
@@ -434,3 +436,13 @@ class GeneticOptimizer(OptimizerBase):
 			population.append(new_individual)
 
 		return population
+
+
+	def __generate_random_bound(self, lower: Union[int, float], \
+		upper: Union[int, float], force_int: bool = False) \
+		-> Union[int, float]:
+
+		if force_int:
+			return random.randint(math.floor(lower), math.ceil(upper))
+		else:
+			return random.uniform(lower, upper)
