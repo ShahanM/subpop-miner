@@ -30,7 +30,6 @@ def load_data(filepath, relev_cat, chunksize=10000, totalrows=None, rowstoload=N
 	else:
 		all_data = pd.read_csv(filepath, nrows=rowstoload)
 	
-	print(relev_cat)
 	all_data = all_data[relev_cat]
 
 	all_data['HOUR89_CAT'] = all_data.apply(lambda row: 1 if row['HOUR89'] < 30 else 0, axis=1)
