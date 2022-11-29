@@ -30,20 +30,27 @@ Use the `requirements.txt` file with `pip` to install the necessary packages.
 
 The user interface provides 5 step wizard to guide the user through the process.
 
-1. Wizard step 1: Select the dataset
+1. Wizard step 1: Loading the dataset
 ![Wizard step 1a](https://raw.githubusercontent.com/shahanM/subpop-miner/main/imgs/wiz1_nofile.png)
 ![Wizard step 1b](https://raw.githubusercontent.com/shahanM/subpop-miner/main/imgs/wiz1_file.png)
 
-1. **Load data**: The user can load the data from a CSV file. The CSV file must
+**Load data**: The user can load the data from a CSV file. The CSV file must
    contain a header row.
-2. **Select relevant columns**: The user can select the columns that are
+
+2. Wizard step 2: Selecting the attributes to be used in the analysis
+![Wizard step 2](https://raw.githubusercontent.com/shahanM/subpop-miner/main/imgs/wiz2.png)
+
+**Select relevant columns**: The user can select the columns that are
    relevant to the data protection project.
-3. **Indicate data types**: The user needs to indicate the data types of the
+
+3. Wizard step 3: Indicating the attribute types and the outlier target variable
+![Wizard step 3](https://raw.githubusercontent.com/shahanM/subpop-miner/main/imgs/wiz3.png)
+
+**Indicate data types**: The user needs to indicate the data types of the
    selected columns. The data types are considered in two levels: the first
    level is the general data type (`numeric`, `categorical`), and the second
    level indicates if the variable is `dependent` or `independent`.
    The `dependent` variable is a numerical variable outlier of which must be protected. The `independent` variables are categorical and continuous variables that define subpopulations.
-4. **Select parameters**: The user can select the parameters for the
-   subpopulation mining algorithm.
-5. **Run the algorithm**: The user can run the algorithm and receive a list of
-   subpopulations that that are sensitive to data disclosure.
+
+1. Wizard step 4: Setting the parameters for the mining algorithm
+![Wizard step 4](https://raw.githubusercontent.com/shahanM/subpop-miner/main/imgs/wiz4.png)
