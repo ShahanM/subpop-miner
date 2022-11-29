@@ -30,6 +30,10 @@ Use the `requirements.txt` file with `pip` to install the necessary packages.
 
 The user interface provides 5 step wizard to guide the user through the process.
 
+1. Wizard step 1: Select the dataset
+![Wizard step 1a](https://raw.githubusercontent.com/shahanM/subpop-miner/main/imgs/wiz1_nofile.png)
+![Wizard step 1b](https://raw.githubusercontent.com/shahanM/subpop-miner/main/imgs/wiz1_file.png)
+
 1. **Load data**: The user can load the data from a CSV file. The CSV file must
    contain a header row.
 2. **Select relevant columns**: The user can select the columns that are
