@@ -32,7 +32,6 @@ The user interface provides 5 step wizard to guide the user through the process.
 
 1. Wizard step 1: Loading the dataset
 ![Wizard step 1a](https://raw.githubusercontent.com/shahanM/subpop-miner/main/imgs/wiz1_nofile.png)
-![Wizard step 1b](https://raw.githubusercontent.com/shahanM/subpop-miner/main/imgs/wiz1_file.png)
 
 **Load data**: The user can load the data from a CSV file. The CSV file must
    contain a header row.
@@ -52,5 +51,5 @@ The user interface provides 5 step wizard to guide the user through the process.
    level indicates if the variable is `dependent` or `independent`.
    The `dependent` variable is a numerical variable outlier of which must be protected. The `independent` variables are categorical and continuous variables that define subpopulations.
 
-1. Wizard step 4: Setting the parameters for the mining algorithm
+4. Wizard step 4: Setting the parameters for the mining algorithm
 ![Wizard step 4](https://raw.githubusercontent.com/shahanM/subpop-miner/main/imgs/wiz4.png)
