@@ -8,22 +8,54 @@ class ContinuousVariable(BaseModel):
 	lbound: float
 	ubound: float
 	correlation: float
+	freeze: bool = False
+
+	def __gt__(self, other: 'ContinuousVariable') -> bool:
+		return self.name == other.name and ((other.correlation > 0 \
+			and self.ubound > other.ubound) or (other.correlation < 0 \
+			and self.lbound < other.lbound))
+	
+	def __lt__(self, other: 'ContinuousVariable') -> bool:
+		return self.name == other.name and ((other.correlation > 0 \
+			and self.ubound < other.ubound) or (other.correlation < 0 \
+			and self.lbound < other.lbound))
+
+	def __ge__(self, other: 'ContinuousVariable') -> bool:
+		return self.name == other.name and ((other.correlation > 0 \
+			and self.ubound >= other.ubound) or (other.correlation < 0 \
+			and self.lbound <= other.lbound))
+	
+	def __le__(self, other: 'ContinuousVariable') -> bool:
+		return self.name == other.name and ((other.correlation > 0 \
+			and self.ubound <= other.ubound) or (other.correlation < 0 \
+			and self.lbound >= other.lbound))
+
+	def __eq__(self, other: 'ContinuousVariable') -> bool:
+		return self.name == other.name and self.lbound == other.lbound \
+			and self.ubound == other.ubound
+
+	def __hash__(self) -> int:
+		return hash((self.name, self.lbound, self.ubound, self.correlation))
+
 
 class DiscreteVariableDescriptor(BaseModel):
 	name: str
 	values: list
 
+
 class DiscreteVariable(BaseModel):
 	name: str
 	value: Union[str, int]
+
+	def __hash__(self) -> int:
+		return hash((self.name, self.value))
 
 
 class RuleMeta(BaseModel):
 	continuous_vars: Dict[str, ContinuousVariable] = {}
 	discrete_vars: Dict[str, DiscreteVariableDescriptor] = {}
 
-# {'rule_dict': rule[0], 'rule_str': rule[1], 'support': supp, 'confidence': conf, 'threshold': subthreshold}
-# {'rule_dict': rule[0], 'rule_str': rule[1], 'support': supp, 'confidence': conf, 'q1': q1, 'q3': q3, 'threshold': subthreshold, 'true_frequency': freq}
+
 class Rule():
 	def __init__(self, itemset: List[str], \
 		target: Optional[str]=None, \
@@ -39,26 +71,29 @@ class Rule():
 		"""
 
 		rule_dict: Dict[str, Union[str, int, float]] = {}
-		rule_str: str =  ''
+		# rule_str: str =  ''
 		
+		# FIXME itemset is not a set but a list - ideally it should be a set
 		self.itemset = itemset
-		if len(self.itemset) > 0:
-			rule_dict, rule_str = self.build_rule_from_itemset()
+		# if len(self.itemset) > 0:
+			# rule_dict, rule_str = self.build_rule_from_itemset()
 
 		self.rule_dict = rule_dict
-		self.rule_str = rule_str
+		# self.rule_str = rule_str
 
 		self.target = target
+
 
 		if continuous_vars:
 			self.continuous_vars = continuous_vars
 		else:
 			self.continuous_vars = {}
-		# object.__setattr__(self, 'continuous_vars', continuous_vars)
 		if discrete_vars:
 			self.discrete_vars = discrete_vars
 		else:
 			self.discrete_vars = {}
+
+		self.rule_str = self.__build_rule_string()
 		
 		# extra features for convenience but aren't always used
 		self.numrows: int = 0
@@ -66,7 +101,6 @@ class Rule():
 		self.q1: Union[int, float] = 0.0
 		self.q3: Union[int, float] = 0.0
 		self.target_threshold: Union[int, float] = 0.0
-		# object.__setattr__(self, 'discrete_vars', discrete_vars)
 
 	def __repr__(self) -> str:
 		return {
@@ -78,15 +112,23 @@ class Rule():
 			'discrete_vars': self.discrete_vars
 		}.__repr__()
 
+	def __hash__(self) -> int:
+		return hash(self.rule_str)
+	
+	def __eq__(self, other) -> bool:
+		return self.rule_str == other.rule_str
+
+	def __ne__(self, other) -> bool:
+		return not self.__eq__(other)
+
 	def add_continuous_variable(self, contvar: ContinuousVariable) -> None:
 		"""Adds a continuous variable to the rule.
 
 		Args:
 			contvar (ContinuousVariable): The continuous variable to add.
 		"""
-		self.continuous_vars[contvar.name] = contvar
+		self.continuous_vars[contvar.name] = contvar.copy()
 		newitemset = self.itemset.copy()
-		
 		varupdt = 0
 		for i, item in enumerate(self.itemset):
 			if contvar.name in item:
@@ -100,12 +142,11 @@ class Rule():
 			if varupdt == 0:
 				newitemset.append(contvar.name + '>=' + str(contvar.lbound))
 				newitemset.append(contvar.name + '<=' + str(contvar.ubound))
-				
 		self.itemset = newitemset
 
-		rule_dict, rule_str = self.build_rule_from_itemset()
-		self.rule_dict = rule_dict
-		self.rule_str = rule_str
+		# rule_dict, rule_str = self.build_rule_from_itemset()
+		# self.rule_dict = rule_dict
+		self.rule_str = self.__build_rule_string()
 
 	def remove_continuous_variable(self, contvar: ContinuousVariable) -> None:
 		"""Removes a continuous variable from the rule.
@@ -114,16 +155,17 @@ class Rule():
 			contvar (ContinuousVariable): The continuous variable to remove.
 		"""
 		if contvar.name in self.continuous_vars:
-			del self.continuous_vars[contvar.name]
 			newitemset = self.itemset.copy()
 			for i, item in enumerate(self.itemset):
 				if contvar.name in item:
+					print('==>', contvar, item)
 					newitemset.remove(item)
 			self.itemset = newitemset
+			del self.continuous_vars[contvar.name]
 
-			rule_dict, rule_str = self.build_rule_from_itemset()
-			self.rule_dict = rule_dict
-			self.rule_str = rule_str
+			# rule_dict, rule_str = self.build_rule_from_itemset()
+			# self.rule_dict = rule_dict
+			self.rule_str = self.__build_rule_string()
 
 	def update_continuous_variable(self, contvar: ContinuousVariable) -> None:
 		"""Updates a continuous variable in the rule.
@@ -131,7 +173,7 @@ class Rule():
 		Args:
 			contvar (ContinuousVariable): The continuous variable to update.
 		"""
-		self.continuous_vars[contvar.name] = contvar
+		self.continuous_vars[contvar.name] = contvar.copy()
 		newitemset = self.itemset.copy()
 		for i, item in enumerate(self.itemset):
 			if contvar.name in item:
@@ -141,56 +183,117 @@ class Rule():
 					newitemset[i] = contvar.name + '<=' + str(contvar.ubound)
 		self.itemset = newitemset
 
-		rule_dict, rule_str = self.build_rule_from_itemset()
-		self.rule_dict = rule_dict
-		self.rule_str = rule_str
+		# rule_dict, rule_str = self.build_rule_from_itemset()
+		# self.rule_dict = rule_dict
+		self.rule_str = self.__build_rule_string()
 
-	def build_rule_from_itemset(self, itemset: Optional[List[str]] = None) \
-		-> Tuple[dict, str]:
-		"""Builds a rule from an itemset.
+	def add_discrete_variable(self, discvar: DiscreteVariable) -> None:
+		"""Adds a discrete variable to the rule.
 
 		Args:
-			itmset (list) [Optional]: The itemset to build the rule from.
+			discvar (DiscreteVariable): The discrete variable to add.
+		"""
+		self.discrete_vars[discvar.name] = discvar.copy()
+		newitemset = self.itemset.copy()
+
+		dvarstr = discvar.name + '=' + str(discvar.value)
+		if dvarstr not in newitemset:
+			newitemset.append(dvarstr)
+
+		self.itemset = newitemset
+
+		# rule_dict, rule_str = self.build_rule_from_itemset()
+		# self.rule_dict = rule_dict
+		self.rule_str = self.__build_rule_string()
+
+	def remove_discrete_variable(self, discvar: DiscreteVariable) -> None:
+		"""Removes a discrete variable from the rule.
+
+		Args:
+			discvar (DiscreteVariable): The discrete variable to remove.
+		"""
+		if discvar.name in self.discrete_vars:
+			del self.discrete_vars[discvar.name]
+			newitemset = self.itemset.copy()
+			dvarstr = discvar.name + '=' + str(discvar.value)
+			if dvarstr in newitemset:
+				newitemset.remove(dvarstr)
+			self.itemset = newitemset
+
+			# rule_dict, rule_str = self.build_rule_from_itemset()
+			# self.rule_dict = rule_dict
+			self.rule_str = self.__build_rule_string()
+
+	def __build_rule_string(self) -> str:
+		"""Builds the rule string from the itemset.
 
 		Returns:
-			dict: The rule dictionary.
 			str: The rule string.
 		"""
-		if itemset and len(itemset) > 0:
-			self.itemset = itemset
-		elif self.itemset and len(self.itemset) > 0:
-			itemset = self.itemset
-		else:
-			return {}, ''
-		query_ = []
-		rule_dict = {}
-		assert isinstance(itemset, list)
-		for itm in iter(itemset):
-			if '>=' in itm:
-				quant_ = itm.split('>=')
-				quant_cat = quant_[0].strip()
-				quant_lbound = quant_[1].strip()
-				rule_dict[quant_cat] = {'lbound': float(quant_lbound)}
-				query_.append(itm)
-			elif '<=' in itm:
-				quant_ = itm.split('<=')
-				quant_cat = quant_[0].strip()
-				quant_ubound = quant_[1].strip()
-				rule_dict[quant_cat] = {'ubound': float(quant_ubound)}
-				query_.append(itm)
-			else:
-				splitsville = itm.split('=')
-				qual_cat = splitsville[0].strip()
-				qual_val = splitsville[1].strip()
-				rule_dict[qual_cat] = int(qual_val)
-				query_.append(qual_cat + '==' + qual_val)
+		# dvaritems = []
+		# for dvar in self.discrete_vars.values():
+			# dvaritems.append(dvar.name + '==' + str(dvar.value))
+		dvaritems = [dvar.name + '==' + str(dvar.value) \
+			for dvar in self.discrete_vars.values()]
+		# dvaritems.sort()
 
-		rule_str = ' & '.join(query_)
-		self.rule_dict = rule_dict
+		cvaritems = []
+		for cvar in self.continuous_vars.values():
+			cvaritems.append(cvar.name + '>=' + str(cvar.lbound))
+			cvaritems.append(cvar.name + '<=' + str(cvar.ubound))
+		# cvaritems.sort()
+
+		items = sorted(dvaritems) + sorted(cvaritems, reverse=True)
+
+		return ' & '.join(items)
+
+	# def build_rule_from_itemset(self, itemset: Optional[List[str]] = None) \
+	# 	-> Tuple[dict, str]:
+	# 	"""Builds a rule from an itemset.
+
+	# 	Args:
+	# 		itemset (list) [Optional]: The itemset to build the rule from.
+
+	# 	Returns:
+	# 		dict: The rule dictionary.
+	# 		str: The rule string.
+	# 	"""
+	# 	if itemset and len(itemset) > 0:
+	# 		self.itemset = itemset
+	# 	elif self.itemset and len(self.itemset) > 0:
+	# 		itemset = self.itemset
+	# 	else:
+	# 		return {}, ''
+
+	# 	query_ = []
+	# 	rule_dict = {}
+	# 	assert isinstance(itemset, list)
+	# 	for itm in iter(itemset):
+	# 		if '>=' in itm:
+	# 			quant_ = itm.split('>=')
+	# 			quant_cat = quant_[0].strip()
+	# 			quant_lbound = quant_[1].strip()
+	# 			rule_dict[quant_cat] = {'lbound': float(quant_lbound)}
+	# 			query_.append(itm)
+	# 		elif '<=' in itm:
+	# 			quant_ = itm.split('<=')
+	# 			quant_cat = quant_[0].strip()
+	# 			quant_ubound = quant_[1].strip()
+	# 			rule_dict[quant_cat] = {'ubound': float(quant_ubound)}
+	# 			query_.append(itm)
+	# 		else:
+	# 			splitsville = itm.split('=')
+	# 			qual_cat = splitsville[0].strip()
+	# 			qual_val = splitsville[1].strip()
+	# 			rule_dict[qual_cat] = int(qual_val)
+	# 			query_.append(qual_cat + '==' + qual_val)
+
+	# 	rule_str = ' & '.join(sorted(query_, reverse=True))
+	# 	self.rule_dict = rule_dict
 		
-		self.rule_str = rule_str
+	# 	self.rule_str = rule_str
 
-		return rule_dict, rule_str
+	# 	return rule_dict, rule_str
 
 	def evaluate(self, data: pd.DataFrame, \
 		eval_params: Dict[str, Union[int, float]], \
@@ -201,7 +304,7 @@ class Rule():
 		Args:
 			eval_params ({str: Union[int, float]}): The data context to evaluate
 			the rule against.
-			Expeted parameter keys:
+			Expected parameter keys:
 				- 'minsup': The support threshold.
 				- 'minq1': The lower quartile threshold.
 				- 'minq3': The upper quartile threshold.
@@ -250,8 +353,12 @@ class Rule():
 		else:
 			popiqr = eval_params['minq3'] - eval_params['minq1']
 			minthreshold = eval_params['minq3'] + 3*popiqr - eval_params['delta']
-		if support >= eval_params['minsup'] and subthreshold <= minthreshold:
-			return True
+
+		if support >= eval_params['minsup']:
+			if subthreshold <= minthreshold:
+				return True
+			else:
+				return False
 		else:
 			return False
 
@@ -278,18 +385,72 @@ class Rule():
 		elif self.rule_str is None:
 			raise ValueError('No query string found.')
 		assert query is not None
-		subpop = data.query(query)
+		try:
+			subpop = data.query(query)
+		except Exception as e:
+			print(e)
+			print('Error evaluating query: {}'.format(query))
+			return 0, 0, 0
 		
 		return subpop[target].quantile(0.25), \
 			subpop[target].quantile(0.75), len(subpop)
 
 	def __copy__(self):
 		rule = Rule(self.itemset, self.target)
-		rule.discrete_vars = self.discrete_vars
+
+		for disc in self.discrete_vars.values():
+			rule.add_discrete_variable(disc)
+
 		for cont in self.continuous_vars.values():
 			rule.add_continuous_variable(cont)
+
+		rule.numrows = self.numrows
+		rule.support = self.support
+		rule.q1 = self.q1
+		rule.q3 = self.q3
+		rule.target_threshold = self.target_threshold
 
 		return rule
 	
 	def copy(self):
 		return self.__copy__()
+
+	def issubrule(self, other):
+		if not isinstance(other, Rule):
+			return False
+		
+		selfdset = set(self.discrete_vars.values())
+		otherdset = set(other.discrete_vars.values())
+		selfcset = set(self.continuous_vars.values())
+		othercset = set(other.continuous_vars.values())
+
+		if selfdset.issubset(otherdset) and len(selfcset.union(othercset)) == 0:
+			return True
+
+
+		if len(self.discrete_vars) > len(other.discrete_vars):
+			return otherdset.issubset(selfdset)
+		elif len(self.discrete_vars) == len(other.discrete_vars):
+			if selfdset == otherdset:
+				if selfcset == othercset:
+					return True
+				else:
+					uniondiff = selfcset.union(othercset)\
+						.difference(selfcset.intersection(othercset))
+					if len(uniondiff) == 2:
+						cone = uniondiff.pop()
+						ctwo = uniondiff.pop()
+						if cone.name == ctwo.name:
+							return self.continuous_vars[cone.name] <= \
+								self.continuous_vars[ctwo.name]
+						else:
+							return False
+		# elif len(self.continuous_vars) == len(self.continuous_vars):
+			# if selfcset == othercset:
+				
+			# if set(self.continuous_vars).difference(set(other.continuous_vars)) == 1:
+
+		# else:
+			# return False
+		
+		return False

@@ -1,6 +1,6 @@
 import pickle
 
-from miner.rule import Rule, RuleMeta
+from miner.rule import Rule
 from typing import List
 
 
@@ -121,68 +121,33 @@ cat_dict = {
 }
 
 
-# def write_rules_file(ruleslist, fname, popthresh):
-#     with open(fname, 'w') as fptr:
-#         fptr.write('Total Rules: {}'.format(len(ruleslist)))
-#         fptr.write('\n\n')
-#         for rule_ in ruleslist:
-#             sblist = []
-#             skip = False
-#             for k, v in rule_['rule_dict'].items():
-#                 if k in cat_dict.keys():
-#                     if type(v) == dict:
-#                         if int(v['ubound']) <= 3:
-#                             print(rule_)
-#                             skip = True
-#                         if int(v['ubound']) == 4 and len(rule_['rule_dict'].keys()) > 1:
-#                             skip = True
-#                         sblist.append('{}: {}'.format(k, cat_dict[k][int(v['ubound'])]))
-#                     else:
-#                         sblist.append('{}: {}'.format(k, cat_dict[k][v]))
-#             subpop = ' AND '.join(sblist)
-#             # subpop = ' AND '.join(['{}: {}'.format(k, cat_dict[k][v]) \
-#             #     for k, v in rule_['rule_dict'].items() if k in cat_dict.keys()])
-#             q1 = rule_['q1']
-#             q3 = rule_['q3']
-#             mu=3
-#             threshold = rule_['threshold']
-
-#             conf = rule_['confidence']
-#             supp = rule_['support']
-#             rulestr = rule_['rule_str']
-            
-#             filter_status = ''
-#             if rule_['threshold'] <= popthresh:
-#                 filter_status = 'PASS'
-#             else:
-#                 filter_status = 'FAIL'
-#                 continue
-
-#             if skip:
-#                 continue
-
-#             pretty_print_to_file(rule_string=rulestr, confidence=conf, \
-#                 support=supp, subpop=subpop, filter_status=filter_status, \
-#                 q1=q1, q3=q3, mu=mu, threshold=threshold, fileptr=fptr)
-
-
-# def pretty_print_to_file(rule_string, confidence, support, subpop, \
-#     filter_status, q1, q3, mu, threshold, fileptr):	
-#     fileptr.write('\nShowing for subpopulation {}\n'.format(rule_string))
-#     fileptr.write('Confidence {}\n'.format(confidence))
-#     fileptr.write('Support {}\n'.format(support))
-#     fileptr.write('{}\n'.format(subpop))
-#     fileptr.write('-----------------------------------------------------------\n')
-#     fileptr.write('Threshold test: ' + filter_status + '\n')
-#     fileptr.write('Quartile 1: {}\n'.format(q1))
-#     fileptr.write('Quartile 3: {}\n'.format(q3))
-#     fileptr.write('IQR: {}\n'.format(q3 - q1))
-#     fileptr.write('Q3 + {} *IQR: {}\n'.format(mu, threshold))
-#     fileptr.write('Population Threshold: {}\n'.format(pop_threshold))
-#     fileptr.write('===========================================================\n\n')
-
-
-
+# def generate_report(filename, rules: List[Rule]):
+# 	with open(filename, 'w') as fptr:
+# 		fptr.write('Total Rules: {}'.format(len(rules)))
+# 		fptr.write('\n\n')
+# 		for rule in rules:
+# 			fptr.write('\nShowing for subpopulation {}\n'.format(rule.rule_str))
+# 			fptr.write('Support {}\n'.format(rule.support))
+# 			sblist = []
+# 			for item in rule.itemset:
+# 				if '=' in item:
+# 					k, v = item.split('=')
+# 					if k in cat_dict.keys():
+# 						sblist.append('{}: {}'.format(k, cat_dict[k][int(v)]))
+# 			for cvar in rule.continuous_vars.values():
+# 				if cvar.name in cat_dict:
+# 					val_lbl = cat_dict[cvar.name][int(cvar.ubound)]
+# 					sblist.append('{}: {}'.format(cvar.name, val_lbl))
+# 			subpop = ' AND '.join(sblist)
+# 			fptr.write('{}\n'.format(subpop))
+# 			fptr.write('-----------------------------------------------------------\n')
+# 			# fptr.write('Threshold test: ' + filter_status + '\n')
+# 			fptr.write('Quartile 1: {}\n'.format(rule.q1))
+# 			fptr.write('Quartile 3: {}\n'.format(rule.q3))
+# 			fptr.write('IQR: {}\n'.format(rule.q3 - rule.q1))
+# 			fptr.write('Q3 + {} *IQR: {}\n'.format(3, rule.q3 + 3*(rule.q3 - rule.q1)))
+# 			# fptr.write('Population Threshold: {}\n'.format(rule.target_threshold))
+# 			fptr.write('===========================================================\n\n')
 
 def generate_report(filename, rules: List[Rule]):
 	with open(filename, 'w') as fptr:
@@ -192,17 +157,9 @@ def generate_report(filename, rules: List[Rule]):
 			fptr.write('\nShowing for subpopulation {}\n'.format(rule.rule_str))
 			fptr.write('Support {}\n'.format(rule.support))
 			sblist = []
-			for item in rule.itemset:
-				if '=' in item:
-					k, v = item.split('=')
-					if k in cat_dict.keys():
-						sblist.append('{}: {}'.format(k, cat_dict[k][int(v)]))
-			# for dvar in rule.discrete_vars.values():
-			# 	print(dvar.name)
-			# 	if dvar.name in cat_dict:
-			# 		val_lbl = cat_dict[dvar.name][int(dvar.value)]
-			# 		print(val_lbl)
-			# 		sblist.append('{}: {}'.format(dvar.name, val_lbl))
+			for dvar in rule.discrete_vars.values():
+				if dvar.name in cat_dict:
+					sblist.append('{}: {}'.format(dvar.name, cat_dict[dvar.name][int(dvar.value)]))
 			for cvar in rule.continuous_vars.values():
 				if cvar.name in cat_dict:
 					val_lbl = cat_dict[cvar.name][int(cvar.ubound)]
@@ -213,15 +170,17 @@ def generate_report(filename, rules: List[Rule]):
 			# fptr.write('Threshold test: ' + filter_status + '\n')
 			fptr.write('Quartile 1: {}\n'.format(rule.q1))
 			fptr.write('Quartile 3: {}\n'.format(rule.q3))
-			fptr.write('IQR: {}\n'.format(rule.q1 - rule.q1))
+			fptr.write('IQR: {}\n'.format(rule.q3 - rule.q1))
 			fptr.write('Q3 + {} *IQR: {}\n'.format(3, rule.q3 + 3*(rule.q3 - rule.q1)))
 			# fptr.write('Population Threshold: {}\n'.format(rule.target_threshold))
 			fptr.write('===========================================================\n\n')
 
 
-
 if __name__ == '__main__':
 	with open('mergedlst.pkl', 'rb') as f:
 		mergedlist = pickle.load(f)
-	
+	# with open('pruned.pkl', 'rb') as f:
+		# prunedlist = pickle.load(f)
+	# generate_report('merged_report.txt', prunedlist)
+
 	generate_report('results.txt', mergedlist)

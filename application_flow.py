@@ -9,7 +9,7 @@ import pandas as pd
 from miner.frequent_itemsets import FrequentItemsets
 from miner.optimizer import GeneticOptimizer
 from miner.rule import (ContinuousVariable, DiscreteVariableDescriptor, Rule,
-                        RuleMeta)
+                        RuleMeta, DiscreteVariable)
 from miner.utils import *
 from utils.data_utils import Config
 
@@ -37,6 +37,8 @@ def load_data(filepath, relev_cat, chunksize=10000, totalrows=None, rowstoload=N
 	all_data = all_data[all_data['INCOME1'] > 0]
 	all_data = all_data[all_data['AGE'] > 18]
 	all_data['INCOME1_CAT'] = all_data.apply(lambda row: 1 if row['INCOME1'] <= 52000 else 0, axis=1)
+
+	all_data['HOUR_INV'] = all_data.apply(lambda row: 99 - row['HOUR89'], axis=1)
 
 	return all_data
 
@@ -82,17 +84,22 @@ def build_rulemeta(all_data, relevant_col_types, target_col):
 	
 	return rulemeta
 
-def run_optimizer(optimizer, rule, eval_params, datalen):
-		newrule = optimizer.optimize(rule, eval_params)
-		if newrule.evaluate(optimizer.data, eval_params, datalen=datalen):
-			return newrule
-		else:
-			return None
+def run_optimizer(optimizer, rule, eval_params, datalen, i, total):
+	print(f'Running optimizer for rule {i} of {total}')
+	start = time.time()
+	newrule = optimizer.optimize(rule, eval_params)
+	# return newrule
+	if newrule.evaluate(optimizer.data, eval_params, datalen=datalen):
+		print(f'Rule {i} of {total} improved in {time.time() - start} seconds')
+		return newrule
+	else:
+		print(f'Rule {i} of {total} did not improve in {time.time() - start} seconds')
+		return None
 
 
 def parallel_gen(optimizer, rules, num_processes, eval_params, datalen):
 	with Pool(processes=num_processes) as pool:
-		results = pool.starmap(run_optimizer, [(optimizer, rule, eval_params, datalen) for rule in rules])
+		results = pool.starmap(run_optimizer, [(optimizer, rule, eval_params, datalen, i, len(rules)) for i, rule in enumerate(rules, 1)])
 
 		return [r for r in results if r is not None]
 
@@ -103,7 +110,7 @@ def main(filepath):
 	print('Preparing to load data...')
 	
 	startsubtime = time.time()
-	totalrows = sum(1 for row in open(filepath, 'r'))
+	totalrows = sum(1 for _ in open(filepath, 'r'))
 	print('Time taken to count rows: {} seconds'.format(time.time() - startsubtime))
 	print('------------------\n')
 	
@@ -115,12 +122,12 @@ def main(filepath):
 	relev_cont = ['INCOME1', 'HOUR89', 'AGE', 'WEEK89', 'YEARSCH']
 
 	relev_cat_type = [('DISABL1', 'cat'), ('CLASS', 'cat'), ('INDUSTRY_CLASS', 'cat'), ('OCCUP_CLASS', 'cat'), \
-		('RLABOR', 'cat'), ('HOUR89', 'cont'), ('YEARSCH', 'cont'), ('RELAT1', 'cat'), ('WEEK89', 'cont')]
+		('RLABOR', 'cat'), ('HOUR89', 'cont'), ('YEARSCH', 'cont'), ('RELAT1', 'cat'), ('WEEK89', 'cont'), ('HOUR_INV', 'cont')]
 	# relev_cat_type = [('DISABL1', 'cat'), ('CLASS', 'cat'), ('INDUSTRY_CLASS', 'cat'), ('OCCUP_CLASS', 'cat'), \
 	# 	('RLABOR', 'cat'), ('HOUR89_CAT', 'cat'), ('YEARSCH', 'cont'), ('RELAT1', 'cat'), ('WEEK89_CAT', 'cat')]
 	
 	data = load_data(filepath, relev_cat+relev_cont, chunksize=100000, totalrows=totalrows)
-	# data = load_data(filepath, relev_cat+relev_cont, rowstoload=1000)
+	# data = load_data(filepath, relev_cat+relev_cont, rowstoload=5)
 	print('Time taken to load data: {} seconds'.format(time.time() - startsubtime))
 	print('------------------\n')
 
@@ -182,10 +189,11 @@ def main(filepath):
 		itemset = fitemsets.itemsets[setsize]
 		for fset, freq in itemset.items():
 			mycats = [fitemsets.id2item[mycat] for mycat in iter(fset)]
-			rule = Rule(itemset=mycats, target='INCOME1')
-			# rule.build_rule_from_itemset()
+			# print(mycats)
+			dvars = {dvar[0]: DiscreteVariable(name=dvar[0], value=dvar[1]) for dvar in map(lambda x: x.split('='), mycats)}
+			rule = Rule(itemset=mycats, target='INCOME1', discrete_vars=dvars)
+			print(rule)
 			rule_eval = rule.evaluate(data, eval_params, datalen=datalen)
-			# print('{}: {}'.format(rule.rule_str, 'PASS' if rule_eval else 'FAIL'))
 
 			if rule_eval:
 				rset = set(rule.itemset)
@@ -193,7 +201,10 @@ def main(filepath):
 					seen.append(rset)
 					passlist.append(rule)
 			else:
-				faillist.append(rule)
+				if rule.support >= config['minsup']:
+					faillist.append(rule)
+				else: continue
+
 	print('{} subpopulation rules skipped'.format(len(seen)))
 	print('{} subpupulation that PASSED outlier evaluation.'.format(len(passlist)))
 	print('{} subpupulation that FAILED outlier evaluation.'.format(len(faillist)))
@@ -217,6 +228,89 @@ def main(filepath):
 
 	print('Adding continuous variables to rules with Genetic Algorithm...')
 	startsubtime = time.time()
+
+	# INFLATED WITH TEMPLATES
+	testcand = gencandidates.copy()
+	gencandidates = []
+	for rule in testcand:
+		for cvar in rulemeta.continuous_vars.values():
+			newrule = Rule(itemset=rule.itemset[:], target='INCOME1', \
+				discrete_vars=rule.discrete_vars.copy())
+			ncvar = ContinuousVariable(name=cvar.name, lbound=cvar.lbound, \
+				ubound=cvar.ubound, correlation=cvar.correlation)
+			newrule.add_continuous_variable(ncvar)
+			gencandidates.append(newrule)
+		
+		cvars = list(rulemeta.continuous_vars.keys())
+		for cvaridx1 in range(len(cvars)-1):
+			for cvaridx2 in range(cvaridx1+1, len(cvars)):
+				newrule = Rule(itemset=rule.itemset[:], target='INCOME1', \
+					discrete_vars=rule.discrete_vars.copy())
+				ncvar1 = ContinuousVariable(name=rulemeta.continuous_vars[cvars[cvaridx1]].name, \
+					lbound=rulemeta.continuous_vars[cvars[cvaridx1]].lbound, \
+					ubound=rulemeta.continuous_vars[cvars[cvaridx1]].ubound, \
+					correlation=rulemeta.continuous_vars[cvars[cvaridx1]].correlation)
+				ncvar2 = ContinuousVariable(name=rulemeta.continuous_vars[cvars[cvaridx2]].name, \
+					lbound=rulemeta.continuous_vars[cvars[cvaridx2]].lbound, \
+					ubound=rulemeta.continuous_vars[cvars[cvaridx2]].ubound, \
+					correlation=rulemeta.continuous_vars[cvars[cvaridx2]].correlation)
+				newrule.add_continuous_variable(ncvar1)
+				newrule.add_continuous_variable(ncvar2)
+				gencandidates.append(newrule)
+		newrule = Rule(itemset=rule.itemset[:], target='INCOME1', \
+			discrete_vars=rule.discrete_vars.copy())
+		for cvar in rulemeta.continuous_vars.values():
+			ncvar = ContinuousVariable(name=cvar.name, lbound=cvar.lbound, \
+				ubound=cvar.ubound, correlation=cvar.correlation)
+			newrule.add_continuous_variable(ncvar)
+		gencandidates.append(newrule)
+
+	# COMBINATION TEMPLATES
+	# gencandidates = []
+	for cvar in rulemeta.continuous_vars.values():
+		newrule = Rule(itemset=[], target='INCOME1')
+		ncvar = ContinuousVariable(name=cvar.name, lbound=cvar.lbound, \
+			ubound=cvar.ubound, correlation=cvar.correlation)
+		newrule.add_continuous_variable(ncvar)
+		gencandidates.append(newrule)
+	
+	cvars = list(rulemeta.continuous_vars.keys())
+	for cvaridx1 in range(len(cvars)-1):
+		for cvaridx2 in range(cvaridx1+1, len(cvars)):
+			newrule = Rule(itemset=[], target='INCOME1')
+			ncvar1 = ContinuousVariable(name=rulemeta.continuous_vars[cvars[cvaridx1]].name, \
+				lbound=rulemeta.continuous_vars[cvars[cvaridx1]].lbound, \
+				ubound=rulemeta.continuous_vars[cvars[cvaridx1]].ubound, \
+				correlation=rulemeta.continuous_vars[cvars[cvaridx1]].correlation)
+			ncvar2 = ContinuousVariable(name=rulemeta.continuous_vars[cvars[cvaridx2]].name, \
+				lbound=rulemeta.continuous_vars[cvars[cvaridx2]].lbound, \
+				ubound=rulemeta.continuous_vars[cvars[cvaridx2]].ubound, \
+				correlation=rulemeta.continuous_vars[cvars[cvaridx2]].correlation)
+			newrule.add_continuous_variable(ncvar1)
+			newrule.add_continuous_variable(ncvar2)
+			gencandidates.append(newrule)
+			# newrule.add_continuous_variable(rulemeta.continuous_vars[cvars[cvaridx1]].copy())
+			# newrule.add_continuous_variable(rulemeta.continuous_vars[cvars[cvaridx2]].copy())
+			# gencandidates.append(newrule)
+			# tt.append(newrule)
+	newrule = Rule(itemset=[], target='INCOME1')
+	for cvar in rulemeta.continuous_vars.values():
+		ncvar = ContinuousVariable(name=cvar.name, lbound=cvar.lbound, \
+			ubound=cvar.ubound, correlation=cvar.correlation)
+		newrule.add_continuous_variable(ncvar)
+		# newrule.add_continuous_variable(cvar.copy())
+	gencandidates.append(newrule)
+
+	# INDIVIDUAL TEMPLATES
+	# emptyrule = Rule(itemset=[], target='INCOME1')
+	# gencandidates.append(emptyrule)
+	# for cvar in rulemeta.continuous_vars.values():
+	# 	newrule = Rule(itemset=[], target='INCOME1')
+	# 	fcvar = ContinuousVariable(name=cvar.name, lbound=cvar.lbound, \
+	# 		ubound=cvar.ubound, correlation=cvar.correlation, freeze=True)
+	# 	newrule.add_continuous_variable(fcvar)
+	# 	gencandidates.append(newrule)
+
 	genalgo = GeneticOptimizer(population_size=config['num_population'],\
 		generations=config['num_generations'],
 		crossover_rate=config['crossover_rate'], 
@@ -230,23 +324,31 @@ def main(filepath):
 	# 	newrule = genalgo.optimize(rule, eval_params)
 	# 	if newrule.evaluate(data, eval_params, datalen=datalen):
 	# 		quant.append(newrule)
-	quant = parallel_gen(genalgo, gencandidates, 4, eval_params, datalen)
+	print("Running genetic algorithm on {} rules".format(len(gencandidates)))
+	quant = parallel_gen(genalgo, gencandidates, 8, eval_params, datalen)
 
-	print('Found outlier {} subpopulation with continuous variables.'.format(len(quant)))
+	print('Found {} outlier subpopulation with continuous variables.'.format(len(quant)))
 	print('Time taken to add continuous variables: {} seconds'.format(time.time() - startsubtime))
 	print('------------------\n')
 
 	print('Pruning list of subpopulation rules with continuous variables...')
 	startsubtime = time.time()
-	cleanquant = delta_prune_empty(quant, config['delta2'])
-	finalquant = delta_prune(finallist, cleanquant, 20000)
-	print('Found outlier {} subpopulation with continuous variables after pruning.'.format(len(finalquant)))
+	# cleanquant = delta_prune_empty(quant, config['delta2'])
+	# finalquant = delta_prune(finallist, cleanquant, 20000)
+	print('Removing rules with continuous variables that span the entire range...')
+	finalquant = prune_spanning_vars(quant, rulemeta)
+	print('Found {} outlier subpopulation with continuous variables after removing spanning variables.'.format(len(finalquant)))
+	print('Removing duplicate rules...')
+	# finalquant = remove_duplicate_rules(finalquant)
+	# print('Found {} outlier subpopulation with continuous variables after removing duplicates.'.format(len(finalquant)))
 	print('Time taken to prune quant: {} seconds'.format(time.time() - startsubtime))
 	print('------------------\n')
 
 	print('Merging all subpopulation rules and writing to file...')
 	startsubtime = time.time()
 	merged = finallist + finalquant
+	# merged = finallist + quant
+	# merged = quant
 
 	with open('mergedlst.pkl', 'wb') as f:
 		pkl.dump(merged, f)
@@ -258,5 +360,22 @@ def main(filepath):
 
 
 if __name__ == "__main__":
-	path = '/home/ishahanm/dev/projects/subpop-topcode/census data/USCensus1990Full_industry_occup_coded.csv'
-	main(path)
+	path = '/home/ishahanm/dev/projects/other_research/subpop-topcode/census data/USCensus1990Full_industry_occup_coded.csv'
+	# main(path)
+	# pruned = []
+	# with open('mergedlst.pkl', 'rb') as f:
+		# merged = pkl.load(f)
+
+		# pruned = remove_duplicate_rules(merged[10:])
+
+	# with open('pruned.pkl', 'wb') as f:
+		# pkl.dump(pruned, f)
+	
+	relev_cat = ['DISABL1', 'CLASS', 'INDUSTRY_CLASS', 'OCCUP_CLASS', \
+		'RLABOR', 'RELAT1']
+
+	relev_cont = ['INCOME1', 'HOUR89', 'AGE', 'WEEK89', 'YEARSCH']
+	totalrows = sum(1 for _ in open(path, 'r'))
+	mydf = load_data(path, relev_cat+relev_cont, chunksize=10000, totalrows=totalrows)
+
+	print(mydf.shape)

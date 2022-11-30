@@ -4,10 +4,13 @@ from PyQt6.QtCore import *
 from PyQt6.QtGui import *
 from PyQt6.QtWidgets import *
 
+from styles.stylesheet import styles
+
 from utils.data_utils import DataContext
 from widgets.landing_widget import LandingWidget
 from widgets.varpick_widget import VariablePickerWidget
 from widgets.vartype_widget import VariableTypeIndicatorWidget
+from widgets.mining_settings import MiningSettingsWidget
 
 
 class MainWindow(QMainWindow):
@@ -33,7 +36,7 @@ class MainWindow(QMainWindow):
 		self.main_layout = QVBoxLayout()
 
 		# top running header for the main_layout
-		main_header_label = QLabel('Instruction...')
+		# main_header_label = QLabel('Instruction...')
 
 		# screen 1 - intro and data loader
 		landing_widget = LandingWidget(self.threadpool, self.data_context)
@@ -44,6 +47,10 @@ class MainWindow(QMainWindow):
 		# screen 3 - variable type indicator
 		self.var_type_widget = VariableTypeIndicatorWidget(self.data_context)
 
+		# screen 4 - parameters
+		self.mining_params_widget = MiningSettingsWidget(self.data_context)
+
+
 		# screen 4 - report metadata (optional)
 		rep_meta_widget = QWidget()
 
@@ -52,7 +59,8 @@ class MainWindow(QMainWindow):
 		self.widget_stack.addWidget(landing_widget)
 		self.widget_stack.addWidget(self.var_pick_widget)
 		self.widget_stack.addWidget(self.var_type_widget)
-		self.widget_stack.addWidget(rep_meta_widget)
+		self.widget_stack.addWidget(self.mining_params_widget)
+		# self.widget_stack.addWidget(rep_meta_widget)
 		self.widget_stack.currentChanged.connect(self.stack_changed)
 
 		# footer navigation for main_layout
@@ -65,7 +73,7 @@ class MainWindow(QMainWindow):
 		main_next_button.pressed.connect(self.go_next_panel)
 		hbox.addWidget(main_next_button)
 
-		self.main_layout.addWidget(main_header_label)
+		# self.main_layout.addWidget(main_header_label)
 		self.main_layout.addWidget(self.widget_stack)
 		self.main_layout.addLayout(hbox)
 		
@@ -81,6 +89,8 @@ class MainWindow(QMainWindow):
 			self.var_pick_widget.update_widget()
 		if index == 2:
 			self.var_type_widget.update_widget()
+		if index == 3:
+			self.mining_params_widget.update_widget()
 
 	def go_next_panel(self):
 		self.panel_index += 1
@@ -93,5 +103,6 @@ class MainWindow(QMainWindow):
 
 if __name__ == '__main__':
 	app = QApplication(sys.argv)
+	app.setStyleSheet(styles)
 	w = MainWindow()
 	app.exec()
