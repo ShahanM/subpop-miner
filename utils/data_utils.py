@@ -14,6 +14,12 @@ class DataContext():
 	def add_key_value_pair(self, key, value):
 		self.__setattr__(key, value)
 
+	def get_data(self):
+		return self.__dict__
+
+	def get_value(self, key):
+		return self.__getattribute__(key)
+
 
 
 class Config:

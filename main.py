@@ -42,7 +42,7 @@ class MainWindow(QMainWindow):
 		landing_widget = LandingWidget(self.threadpool, self.data_context)
 
 		# screen 2 - variable picker
-		self.var_pick_widget = VariablePickerWidget(self.data_context)
+		self.var_pick_widget = VariablePickerWidget(self)
 
 		# screen 3 - variable type indicator
 		self.var_type_widget = VariableTypeIndicatorWidget(self.data_context)
@@ -85,12 +85,13 @@ class MainWindow(QMainWindow):
 	
 	def stack_changed(self, index):
 		print('Stack changed to index: %d' % index)
-		if index == 1:
+		print(len(self.data_context.get_value('accepted_variables')) == 0)
+		if index == 1 and self.var_pick_widget.left_list_widget.count() == 0:
 			self.var_pick_widget.update_widget()
-		if index == 2:
+		if index == 2 and len(self.data_context.get_value('accepted_variables')) >= 0:
 			self.var_type_widget.update_widget()
-		if index == 3:
-			self.mining_params_widget.update_widget()
+		# if index == 3:
+			# self.mining_params_widget.update_widget()
 
 	def go_next_panel(self):
 		self.panel_index += 1

@@ -17,6 +17,7 @@ class MiningSettingsWidget(QWidget):
 		self.vbox.addWidget(description_label, 0, 0, 2, 9)
 
 		self.setLayout(self.vbox)
+		self.update_widget()
 
 	def update_widget(self):
 		print('data_context accepted vars', self.data_context.accepted_variables)
@@ -34,30 +35,30 @@ class MiningSettingsWidget(QWidget):
 		minsup_label = QLabel('Minimum Support')
 		self.vbox.addWidget(minsup_label, 4, 1, 1, 4, qtcore.AlignmentFlag.AlignLeft)
 
-		mincat_var_label = QLabel('Maximum Categorical Variables')
-		self.vbox.addWidget(mincat_var_label, 5, 1, 1, 4, qtcore.AlignmentFlag.AlignLeft)
+		mincat_var_label = QLabel('Maximum Number of Categorical Variables')
+		self.vbox.addWidget(mincat_var_label, 5, 1, 1, 5, qtcore.AlignmentFlag.AlignLeft)
 		
-		delta1_label = QLabel('Delta 1')
-		self.vbox.addWidget(delta1_label, 6, 1, 1, 4, qtcore.AlignmentFlag.AlignLeft)
+		delta1_label = QLabel('Population offset')
+		self.vbox.addWidget(delta1_label, 6, 1, 1, 5, qtcore.AlignmentFlag.AlignLeft)
 
-		delta2_label = QLabel('Delta 2')
-		self.vbox.addWidget(delta2_label, 7, 1, 1, 4, qtcore.AlignmentFlag.AlignLeft)
+		delta2_label = QLabel('Nested subpopulation offset')
+		self.vbox.addWidget(delta2_label, 7, 1, 1, 5, qtcore.AlignmentFlag.AlignLeft)
 
 		minsup_input = QLineEdit()
 		minsup_input.setFixedWidth(144);
-		self.vbox.addWidget(minsup_input, 4, 4)
+		self.vbox.addWidget(minsup_input, 4, 6)
 		
 		mincat_var_input = QLineEdit()
 		mincat_var_input.setFixedWidth(144);
-		self.vbox.addWidget(mincat_var_input, 5, 4)
+		self.vbox.addWidget(mincat_var_input, 5, 6)
 		
 		delta1_input = QLineEdit()
 		delta1_input.setFixedWidth(144);
-		self.vbox.addWidget(delta1_input, 6, 4)
+		self.vbox.addWidget(delta1_input, 6, 6)
 
 		delta2_input = QLineEdit()
 		delta2_input.setFixedWidth(144);
-		self.vbox.addWidget(delta2_input, 7, 4)
+		self.vbox.addWidget(delta2_input, 7, 6)
 
 	def __add_genetic_settings(self):
 		numerical_label = QLabel('Genetic Algorithm Settings')
@@ -78,16 +79,16 @@ class MiningSettingsWidget(QWidget):
 
 		population_size_input = QLineEdit()
 		population_size_input.setFixedWidth(144);
-		self.vbox.addWidget(population_size_input, 10, 4)
+		self.vbox.addWidget(population_size_input, 10, 6)
 
 		max_generations_input = QLineEdit()
 		max_generations_input.setFixedWidth(144);
-		self.vbox.addWidget(max_generations_input, 11, 4)
+		self.vbox.addWidget(max_generations_input, 11, 6)
 
 		crossover_rate_input = QLineEdit()
 		crossover_rate_input.setFixedWidth(144);
-		self.vbox.addWidget(crossover_rate_input, 12, 4)
+		self.vbox.addWidget(crossover_rate_input, 12, 6)
 
 		mutation_rate_input = QLineEdit()
 		mutation_rate_input.setFixedWidth(144);
-		self.vbox.addWidget(mutation_rate_input, 13, 4)
+		self.vbox.addWidget(mutation_rate_input, 13, 6)

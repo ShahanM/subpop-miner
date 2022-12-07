@@ -1,9 +1,9 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, \
-	QFileDialog, QProgressBar
+	QFileDialog, QProgressBar, QGridLayout
 from utils.data_utils import DataContext
 from utils.worker import Worker
 import pandas as pd
-from PyQt6.QtCore import pyqtSignal, QThreadPool
+from PyQt6.QtCore import pyqtSignal, QThreadPool, Qt
 
 class LandingWidget(QWidget):
 	def __init__(self, threadpool: QThreadPool, data_context: DataContext) \
@@ -13,17 +13,21 @@ class LandingWidget(QWidget):
 		self.threadpool = threadpool
 		self.data_context = data_context
 		
-		self.vbox = QVBoxLayout()
-		label = QLabel('Hello and welcome. Only csv files are supported at the moment.')
+		# self.vbox = QVBoxLayout()	
+		self.vbox = QGridLayout()
+		self.vbox.setContentsMargins(0, 0, 0, 0)
+		label1 = QLabel('Please use the open button below to choose a CSV file with headers.')
+		label2 = QLabel('Note: Header names will be used as variable names in the rest of this application.')
 		
 		self.progress_placeholder = QVBoxLayout()
 
 		file_dialog_button = QPushButton("Open File")
 		file_dialog_button.pressed.connect(self.open_dialog)
 
-		self.vbox.addWidget(label)
-		self.vbox.addLayout(self.progress_placeholder)
-		self.vbox.addWidget(file_dialog_button)
+		self.vbox.addWidget(label1, 0, 0, 9, 0, Qt.AlignmentFlag.AlignTop)
+		self.vbox.addWidget(label2, 2, 0, 9, 0, Qt.AlignmentFlag.AlignTop)
+		self.vbox.addWidget(file_dialog_button, 3, 0, 6, 0, Qt.AlignmentFlag.AlignCenter)
+		self.vbox.addLayout(self.progress_placeholder, 5, 0, 9, 3, Qt.AlignmentFlag.AlignCenter)
 
 		self.setLayout(self.vbox)
 
