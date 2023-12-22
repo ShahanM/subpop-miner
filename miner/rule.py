@@ -158,7 +158,7 @@ class Rule():
 			newitemset = self.itemset.copy()
 			for i, item in enumerate(self.itemset):
 				if contvar.name in item:
-					print('==>', contvar, item)
+					# print('==>', contvar, item)
 					newitemset.remove(item)
 			self.itemset = newitemset
 			del self.continuous_vars[contvar.name]
@@ -298,7 +298,7 @@ class Rule():
 	def evaluate(self, data: pd.DataFrame, \
 		eval_params: Dict[str, Union[int, float]], \
 		datalen: Optional[int] = None,
-		target: Optional[str] = None) -> bool:
+		target: Optional[str] = None, weights: Optional[pd.Series]=None) -> bool:
 		"""Evaluates the rule against a data context.
 
 		Args:
@@ -338,7 +338,13 @@ class Rule():
 		if not datalen:
 			datalen = len(data)
 		assert target and len(target) > 0
-		q1, q3, subpopfreq = self.get_subpop_iqr(data, target)
+		q1: Union[int, float] = 0.0
+		q3: Union[int, float] = 0.0
+		subpopfreq: int = 0
+		if weights is not None:
+			q1, q3, subpopfreq = self.get_subpop_iqr(data, target, weights)
+		else:
+			q1, q3, subpopfreq = self.get_subpop_iqr(data, target)
 		self.q1 = q1
 		self.q3 = q3
 		self.numrows = subpopfreq
@@ -363,6 +369,7 @@ class Rule():
 			return False
 
 	def get_subpop_iqr(self, data: pd.DataFrame, target: str, \
+		weights: Optional[pd.Series] = None,
 		query: Optional[str] = None) -> Tuple[float, float, int]:
 		"""Gets the interquartile range of the subpopulation represented by the
 		rule.
@@ -392,6 +399,9 @@ class Rule():
 			print('Error evaluating query: {}'.format(query))
 			return 0, 0, 0
 		
+		if weights is not None:
+			return weighted_percentile(subpop[target], weights, 0.25), \
+				weighted_percentile(subpop[target], weights, 0.75), len(subpop)
 		return subpop[target].quantile(0.25), \
 			subpop[target].quantile(0.75), len(subpop)
 

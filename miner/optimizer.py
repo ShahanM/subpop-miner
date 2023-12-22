@@ -63,9 +63,9 @@ class GeneticOptimizer(OptimizerBase):
 		if not isinstance(rule, Rule):
 			raise ValueError('Rule must be of type Rule')
 		
-		if len(rule.continuous_vars.keys()) > 0:
+		# if len(rule.continuous_vars.keys()) > 0:
 			# raise ValueError('Rule already contains continuous variables')
-			print('Rule already contains continuous variables')
+			# print('Rule already contains continuous variables')
 			# return rule
 
 		# 1. Generate initial population
@@ -177,10 +177,10 @@ class GeneticOptimizer(OptimizerBase):
 		# 2. Return offspring
 
 		# randomly pick 1 continuous variable to crossover
-		if len(parent1.rule.continuous_vars) > 1:
-			cvar = random.choice(list(parent1.rule.continuous_vars.values()))
-		else:
-			cvar = list(parent1.rule.continuous_vars.values())[0]
+		# if len(parent1.rule.continuous_vars) > 1:
+		# 	cvar = random.choice(list(parent1.rule.continuous_vars.values()))
+		# else:
+		# 	cvar = list(parent1.rule.continuous_vars.values())[0]
 
 		# create offspring 1 with bounds from parent1
 		offspring1 = parent1.rule.copy() # possible bug here
