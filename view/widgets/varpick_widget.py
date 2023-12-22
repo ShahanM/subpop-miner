@@ -1,11 +1,10 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QHBoxLayout, \
-	QListWidget, QPushButton, QMainWindow
+	QListWidget, QPushButton
 
 
 class VariablePickerWidget(QWidget):
 	def __init__(self, mainwindow) -> None:
 		super(VariablePickerWidget, self).__init__()
-		# self.data_context = data_context
 		self.mainwindow = mainwindow
 
 		self.selected_var_left = None
@@ -60,32 +59,39 @@ class VariablePickerWidget(QWidget):
 
 
 	def list_item_changed(self, item):
-		if self.left_list_widget == item.listWidget():
-			self.selected_var_left = item
-		
-		if self.right_list_widget == item.listWidget():
-			self.selected_var_right = item
+		if item:
+			if self.left_list_widget == item.listWidget():
+				self.selected_var_left = item
+			
+			if self.right_list_widget == item.listWidget():
+				self.selected_var_right = item
 	
 	def list_text_changed(self, text):
 		print('text', text)
 
 	def move_item_right(self):
-		print('move right')
 		if self.selected_var_left:
 			self.right_list_widget.addItem(self.selected_var_left.text())
 			self.mainwindow.data_context.accepted_variables.append(self.selected_var_left.text())
 			self.left_list_widget.takeItem(self.left_list_widget.row(self.selected_var_left))
-			self.mainwindow.data_context.variables.remove(self.selected_var_left.text())
-			self.selected_var_left = None
+			if self.selected_var_left.text() in self.mainwindow.data_context.variables:
+				self.mainwindow.data_context.variables.remove(self.selected_var_left.text())
+			if self.left_list_widget.count() > 0:
+				self.selected_var_left = self.left_list_widget.item(0)
+			else:
+				self.selected_var_left = None
 
 	def move_item_left(self):
-		print('move left')
 		if self.selected_var_right:
 			self.left_list_widget.addItem(self.selected_var_right.text())
 			self.mainwindow.data_context.variables.append(self.selected_var_right.text())
 			self.right_list_widget.takeItem(self.right_list_widget.row(self.selected_var_right))
-			self.mainwindow.data_context.accepted_variables.remove(self.selected_var_right.text())
-			self.selected_var_right = None
+			if self.selected_var_right.text() in self.mainwindow.data_context.accepted_variables:
+				self.mainwindow.data_context.accepted_variables.remove(self.selected_var_right.text())
+			if self.right_list_widget.count() > 0:
+				self.selected_var_right = self.right_list_widget.item(0)
+			else:
+				self.selected_var_right = None
 
 	def update_widget(self):
 		self.left_list_widget.addItems(self.mainwindow.data_context.variables)
