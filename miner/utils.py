@@ -6,7 +6,7 @@ import itertools
 from .rule import Rule, RuleMeta, ContinuousVariable
 
 
-def delta_prune_empty(candidates: List[Rule], prune_delta: int)\
+def delta_prune_empty(candidates: List[Rule], prune_delta: float)\
 	-> List[Rule]:
 	pruned = []
 	finallist = []
@@ -88,21 +88,45 @@ def prune_spanning_vars(rules: List[Rule], rulemeta: RuleMeta) -> List[Rule]:
 	return pruned
 
 
+# def remove_duplicate_rules(rules: List[Rule]) -> List[Rule]:
+# 	seen = []
+# 	for rule in rules:
+# 		unseen = True
+# 		for srule in seen:
+# 			if srule.issubrule(rule):
+# 				unseen = False
+# 				break
+# 			if rule.issubrule(srule):
+# 				seen.remove(srule)
+# 				break
+# 		else:
+# 			if unseen:
+# 				seen.append(rule)
+# 	return seen
+
 def remove_duplicate_rules(rules: List[Rule]) -> List[Rule]:
-	seen = []
-	for rule in rules:
-		unseen = True
-		for srule in seen:
-			if srule.issubrule(rule):
-				unseen = False
-				break
-			if rule.issubrule(srule):
-				seen.remove(srule)
-				break
-		else:
-			if unseen:
-				seen.append(rule)
-	return seen
+    seen = []
+    for rule in rules:
+        should_add = True
+        
+        for srule in list(seen):
+            # 1. If an existing rule covers the new rule, discard the new rule
+            if srule.issubrule(rule):
+                should_add = False
+                break # We don't need to check further; this rule is redundant
+            
+            # 2. If the new rule covers an existing rule, remove the existing rule
+            if rule.issubrule(srule):
+                seen.remove(srule)
+                # Do NOT break here. 
+                # The new rule might cover other existing rules too, 
+                # and we still need to verify if the new rule itself is covered by a later rule.
+        
+        # Only add the new rule if it wasn't covered by any existing rule
+        if should_add:
+            seen.append(rule)
+            
+    return seen
 
 
 def inflate_with_cont_vars(rule: Rule, contvars: List[ContinuousVariable]):
