@@ -1,6 +1,3 @@
-
-
-
 def PreprocessData(data, config):
 	"""Preprocess data for training and testing
 
