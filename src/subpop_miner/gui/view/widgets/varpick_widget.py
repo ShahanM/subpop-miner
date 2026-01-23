@@ -1,5 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QHBoxLayout, \
-	QListWidget, QPushButton
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QHBoxLayout, QListWidget, QPushButton
 
 
 class VariablePickerWidget(QWidget):
@@ -11,7 +10,9 @@ class VariablePickerWidget(QWidget):
 		self.selected_var_right = None
 
 		self.vbox = QVBoxLayout()
-		self.desc = QLabel('Select variables to be used in the analysis which includes variables subject to protection and variables which define subpopulations.\n')
+		self.desc = QLabel(
+			'Select variables to be used in the analysis which includes variables subject to protection and variables which define subpopulations.\n'
+		)
 		self.desc.setWordWrap(True)
 
 		hbox = QHBoxLayout()
@@ -32,11 +33,11 @@ class VariablePickerWidget(QWidget):
 		self.left_list_widget.currentTextChanged.connect(self.list_text_changed)
 		self.left_col.addWidget(self.left_list_widget)
 
-		move_item_right_button = QPushButton(">")
+		move_item_right_button = QPushButton('>')
 		move_item_right_button.pressed.connect(self.move_item_right)
 		self.mid_col.addWidget(move_item_right_button)
 
-		move_item_left_button = QPushButton("<")
+		move_item_left_button = QPushButton('<')
 		move_item_left_button.pressed.connect(self.move_item_left)
 		self.mid_col.addWidget(move_item_left_button)
 
@@ -57,15 +58,14 @@ class VariablePickerWidget(QWidget):
 		self.setLayout(self.vbox)
 		self.update_widget()
 
-
 	def list_item_changed(self, item):
 		if item:
 			if self.left_list_widget == item.listWidget():
 				self.selected_var_left = item
-			
+
 			if self.right_list_widget == item.listWidget():
 				self.selected_var_right = item
-	
+
 	def list_text_changed(self, text):
 		print('text', text)
 

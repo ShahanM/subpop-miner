@@ -2,3 +2,9 @@ __pycache__/*
 */__pycache__/*
 .vscode
 .python-version
+*.py[cod]
+*.pkl
+*.pickle
+*.csv
+*.log
+*.txt

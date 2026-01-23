@@ -1,0 +1,71 @@
+[project]
+name = "subpop-miner"
+version = "0.2.0"
+description = "Extracts subpopulation that may require extra data protection."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "ipykernel>=7.1.0",
+    "mlxtend>=0.24.0",
+    "numpy>=2.4.1",
+    "pandas>=2.3.3",
+    "pyarrow>=23.0.0",
+    "pydantic>=2.12.5",
+    "scipy>=1.17.0",
+    "seaborn>=0.13.2",
+    "structlog>=25.5.0",
+    "tqdm>=4.67.1",
+]
+[project.optional-dependencies]
+gui = [
+    "PyQt6>=6.0.0",
+    "pyqtgraph>=0.13.0"
+]
+[project.scripts]
+subpop-cli = "subpop_miner.cli:main"
+subpop-gui = "subpop_miner.gui.app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# DISTRIBUTION CONFIGURATION
+[tool.hatch.build.targets.wheel]
+packages = ["src/subpop_miner"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/subpop_miner/synthesis/worker.R" = "subpop_miner/synthesis/worker.R"
+
+[tool.hatch.build.targets.sdist]
+include = ["src"]
+
+[dependency-groups]
+dev = [
+	"pytest>=8.0",
+	"ruff>=0.1",
+	"pylint>=3.0",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+exclude = ["__init__.py"]
+fix = true
+
+[tool.ruff.lint]
+ignore = [
+	"W191", # indentation contains tabs
+]
+select = [
+	"E",  # Pyflakes errors
+	"W",  # Pyflakes warnings
+	"F",  # Pyflakes errors
+	"I",  # isort (Sorts imports automatically)
+	"C",  # flake8-comprehensions
+	"B",  # flake8-bugbear
+	"UP", # pyupgrade (Modernizes code to py311 standards)
+]
+
+[tool.ruff.format]
+quote-style = "single"
+indent-style = "tab"
